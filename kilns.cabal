@@ -1,0 +1,50 @@
+name:          kilns
+version:       0.1.0.0
+synopsis:      An experimental programming language based on the kell calculus.
+description:         
+homepage:      https://github.com/sellout/Kilns
+license:       MIT
+license-file:  LICENSE
+author:        Greg Pfeil
+maintainer:    greg@technomadic.org
+category:      Language
+build-type:    Simple
+cabal-version: >=1.8
+
+library
+  hs-source-dirs: source
+  exposed-modules: Language.KellCalculus.Parser,
+                   Language.KellCalculus.AST,
+                   Language.KellCalculus.JKCalculus,
+                   Language.KellCalculus.ReductionSemantics,
+                   Language.KellCalculus.LabeledTransitionSystem,
+                   -- 4 Congruences
+                   Language.KellCalculus.ContextBisimulation,
+                   Language.KellCalculus.ContextualEquivalence,
+                   -- 5 Instantiating
+                   Language.KellCalculus.PnpJKCalculus,
+                   Language.KellCalculus.FraKtal,
+                   -- Language Extensions
+                   -- Language.Kilns.Parser,
+                   -- Language.Kilns.AST,
+                   Text.Derp
+  -- Other library packages from which modules are imported.
+  other-modules: Language.Common.SetLike
+  build-depends:       base == 4.6.*,
+                       containers == 0.5.*,
+                       multiset == 0.2.*,
+                       charset == 0.3.*,
+                       base-unicode-symbols == 0.2.*
+  ghc-options: -Wall
+
+executable kilns
+  -- .hs or .lhs file containing the Main module.
+  main-is: source/Language/Kilns/Interpreter/Main.hs
+  
+  -- Modules included in this executable, other than Main.
+  -- other-modules:      
+  
+  build-depends:       base == 4.6.*,
+                       containers == 0.5.*,
+                       kilns
+  ghc-options: -Wall -Werror
