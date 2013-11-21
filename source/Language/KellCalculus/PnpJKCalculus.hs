@@ -1,3 +1,8 @@
+{-#
+  LANGUAGE
+  UnicodeSyntax
+  #-}
+
 module Language.KellCalculus.PnpJKCalculus
     () where
 
@@ -14,7 +19,7 @@ import Language.KellCalculus.AST
 import Language.KellCalculus.Parser
 
 class SubPattern ξ where
-    matchR :: ξ -> Process PnpJKPattern -> Maybe (Substitution PnpJKPattern)
+    matchR :: ξ → Process PnpJKPattern → Maybe (Substitution PnpJKPattern)
 
 data MessageTag = Local | Up | Down
                 deriving (Eq, Ord)
@@ -38,10 +43,10 @@ instance ProtoTerm P' where
     _ ≣ _ = False
 
 p' :: Parser Char P'
-p' = (bindingTok <~> identifier ==> (\(_, x) -> P'Variable (Variable x)))
+p' = (bindingTok <~> identifier ==> (\(_, x) → P'Variable (Variable x)))
      <|> (p ==> P'P)
      <|> (startMessageTok |~| bindingTok <~> name >~< p' |~| endMessageTok
-          ==> (\(_, (_, (a, (p, _)))) -> P'Message a p))
+          ==> (\(_, (_, (a, (p, _)))) → P'Message a p))
      <|> (ter '_' ==> const Blank)
 
 data P = PMessage Name P'
@@ -50,9 +55,9 @@ data P = PMessage Name P'
 
 p :: Parser Char P
 p = (startMessageTok |~| name >~< p' |~| endMessageTok
-     ==> (\(_, (a, (q, _))) -> PMessage a q))
+     ==> (\(_, (a, (q, _))) → PMessage a q))
     <|> (startFormTok |~| parTok <~> starw p |~| endFormTok
-         ==> (\(_, (_, (ps, _))) -> foldr1 PParallelComposition ps))
+         ==> (\(_, (_, (ps, _))) → foldr1 PParallelComposition ps))
 
 data J = JMessage MessageTag Name P'
        | JParallelComposition J J
@@ -60,18 +65,18 @@ data J = JMessage MessageTag Name P'
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMessageTok |~| endFormTok
-     ==> (\(_, (tag, (_, (a, (p, _))))) -> JMessage tag a p))
+     ==> (\(_, (tag, (_, (a, (p, _))))) → JMessage tag a p))
     <|> (startMessageTok |~| name >~< p' |~| endMessageTok
-         ==> (\(_, (a, (p, _))) -> JMessage Local a p))
+         ==> (\(_, (a, (p, _))) → JMessage Local a p))
     <|> (startFormTok |~| parTok <~> starw j |~| endFormTok
-         ==> (\(_, (_, (p, _))) -> foldr1 JParallelComposition p))
+         ==> (\(_, (_, (p, _))) → foldr1 JParallelComposition p))
 
 data KellMessage = JKellMessage Name Variable
                  deriving (Eq, Ord)
 
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< bindingTok <~> identifier |~| endKellTok
-              ==> (\(_, (a, (_, (x, _)))) -> JKellMessage a (Variable x))
+              ==> (\(_, (a, (_, (x, _)))) → JKellMessage a (Variable x))
 
 data PnpJKPattern
     = J J
@@ -96,7 +101,7 @@ instance SubPattern P' where
                               matchR p' p]
     matchR (P'Message _ _) _ = error "Can not match a message against a non-message"
 
-toPattern :: P -> PnpJKPattern
+toPattern :: P → PnpJKPattern
 toPattern p = J (toJ p)
     where toJ (PMessage a q) = JMessage Local a q
           toJ (PParallelComposition q r) = JParallelComposition (toJ q) (toJ r)
@@ -176,4 +181,4 @@ instance Pattern PnpJKPattern where
     grammar = (j ==> J)
               <|> (kellMessage ==> JKKellMessage)
               <|> (startFormTok |~| parTok <~> starw j >~< kellMessage |~| endFormTok
-                   ==> (\(_, (_, (j, (k, _)))) -> JKParallelComposition (foldr1 JParallelComposition j) k))
+                   ==> (\(_, (_, (j, (k, _)))) → JKParallelComposition (foldr1 JParallelComposition j) k))

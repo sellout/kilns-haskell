@@ -1,7 +1,6 @@
 {-#
   LANGUAGE
-  UnicodeSyntax,
-  PostfixOperators
+  UnicodeSyntax
   #-}
 
 module Language.KellCalculus.ContextualEquivalence

@@ -1,3 +1,8 @@
+{-#
+  LANGUAGE
+  UnicodeSyntax
+  #-}
+
 module Language.KellCalculus.JKCalculus
     (JKPattern(..)
     ) where
@@ -25,18 +30,18 @@ data J = JMessage MessageTag Name Variable
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< variable |~| endMessageTok |~| endFormTok
-     ==> (\(_, (tag, (_, (a, (p, _))))) -> JMessage tag a p))
+     ==> (\(_, (tag, (_, (a, (p, _))))) → JMessage tag a p))
     <|> (startMessageTok |~| name >~< variable |~| endMessageTok
-         ==> (\(_, (a, (p, _))) -> JMessage Local a p))
+         ==> (\(_, (a, (p, _))) → JMessage Local a p))
     <|> (startFormTok |~| parTok <~> starw j |~| endFormTok
-         ==> (\(_, (_, (p, _))) -> foldr1 JParallelComposition p))
+         ==> (\(_, (_, (p, _))) → foldr1 JParallelComposition p))
 
 data KellMessage = JKellMessage Name Variable
                  deriving (Eq, Ord)
 
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< bindingTok <~> variable |~| endKellTok
-              ==> (\(_, (a, (_, (x, _)))) -> JKellMessage a x)
+              ==> (\(_, (a, (_, (x, _)))) → JKellMessage a x)
 
 data JKPattern
     = J J
@@ -100,4 +105,4 @@ instance Pattern JKPattern where
     grammar = (j ==> J)
               <|> (kellMessage ==> JKKellMessage)
               <|> (startFormTok |~| parTok <~> starw j >~< kellMessage |~| endFormTok
-                   ==> (\(_, (_, (js, (k, _)))) -> JKParallelComposition (foldr1 JParallelComposition js) k))
+                   ==> (\(_, (_, (js, (k, _)))) → JKParallelComposition (foldr1 JParallelComposition js) k))

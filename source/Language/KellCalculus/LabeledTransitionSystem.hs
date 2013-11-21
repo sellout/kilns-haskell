@@ -20,11 +20,11 @@ import Language.Common.SetLike
 import Language.KellCalculus.AST
 import Language.KellCalculus.ReductionSemantics
 
-data Concretion pl
-    = Concretion (Set Name) (MultiSet (AnnotatedMessage pl)) (Process pl)
+data Concretion ξ
+    = Concretion (Set Name) (MultiSet (AnnotatedMessage ξ)) (Process ξ)
     deriving (Eq, Ord)
 
-instance Pattern pl ⇒ NQTerm (Concretion pl) where
+instance Pattern ξ ⇒ NQTerm (Concretion ξ) where
     freeNames (Concretion a ω p) =
         (Data.Foldable.foldr (∪)
                (∅)
@@ -35,10 +35,10 @@ instance Pattern pl ⇒ NQTerm (Concretion pl) where
                                       KellMessage b q → freeNames b ∪ freeNames q)
                             ω) ∪ freeNames p) ∖ a
 
-instance Pattern pl ⇒ ProtoTerm (Concretion pl) where
+instance Pattern ξ ⇒ ProtoTerm (Concretion ξ) where
     Concretion a ω p ≣ Concretion b ω' q = a == b ∧ ω == ω' ∧ p ≣ q
 
-instance Pattern pl ⇒ Term (Concretion pl) where
+instance Pattern ξ ⇒ Term (Concretion ξ) where
     freeVariables (Concretion _ ω p) =
         (Data.Foldable.foldr (∪)
                (∅)
@@ -50,19 +50,19 @@ instance Pattern pl ⇒ Term (Concretion pl) where
                             ω) ∪ freeVariables p)
 
 
-data SimpleAbstraction pl
-    = PatternAbstraction pl (Process pl)
-    | SimpleApplicationAbstraction (SimpleAbstraction pl) (Concretion pl)
+data SimpleAbstraction ξ
+    = PatternAbstraction ξ (Process ξ)
+    | SimpleApplicationAbstraction (SimpleAbstraction ξ) (Concretion ξ)
     deriving (Eq, Ord)
 
-data Abstraction pl
-    = SimpleAbstraction (SimpleAbstraction pl)
-    | KellAbstraction Name (SimpleAbstraction pl) (Process pl)
-    | ApplicationAbstraction (Abstraction pl) (Concretion pl)
-    | RestrictionAbstraction (Set Name) (Abstraction pl)
+data Abstraction ξ
+    = SimpleAbstraction (SimpleAbstraction ξ)
+    | KellAbstraction Name (SimpleAbstraction ξ) (Process ξ)
+    | ApplicationAbstraction (Abstraction ξ) (Concretion ξ)
+    | RestrictionAbstraction (Set Name) (Abstraction ξ)
     deriving (Eq, Ord)
 
-instance Pattern pl ⇒ NQTerm (Abstraction pl) where
+instance Pattern ξ ⇒ NQTerm (Abstraction ξ) where
     freeNames (SimpleAbstraction (PatternAbstraction ξ p)) =
         freeNames ξ ∪ (freeNames p ∖ boundNames ξ)
     freeNames (SimpleAbstraction (SimpleApplicationAbstraction a c)) =
@@ -72,7 +72,7 @@ instance Pattern pl ⇒ NQTerm (Abstraction pl) where
     freeNames (ApplicationAbstraction a c) = freeNames a ∪ freeNames c
     freeNames (RestrictionAbstraction a p) = freeNames p ∖ a
 
-instance Pattern pl ⇒ ProtoTerm (Abstraction pl) where
+instance Pattern ξ ⇒ ProtoTerm (Abstraction ξ) where
     (SimpleAbstraction (PatternAbstraction ξ p)) ≣ (SimpleAbstraction (PatternAbstraction ζ q)) =
         ξ ≣ ζ ∧ p ≣ q
     SimpleAbstraction (SimpleApplicationAbstraction a c) ≣ SimpleAbstraction (SimpleApplicationAbstraction a' c') =
@@ -83,7 +83,7 @@ instance Pattern pl ⇒ ProtoTerm (Abstraction pl) where
     RestrictionAbstraction a p ≣ RestrictionAbstraction a' q = a == a' ∧ p ≣ q
     _ ≣ _ = False
 
-instance Pattern pl ⇒ Term (Abstraction pl) where
+instance Pattern ξ ⇒ Term (Abstraction ξ) where
     freeVariables (SimpleAbstraction (PatternAbstraction ξ p)) =
         freeVariables p ∖ boundVariables ξ
     freeVariables (SimpleAbstraction (SimpleApplicationAbstraction a c)) =
@@ -115,34 +115,34 @@ instance MultiSettable Action where
     toMultiSet (Composition m n) = toMultiSet m ∪ toMultiSet n
     toMultiSet a = MultiSet.singleton a
 
-data Agent pl
-    = ProcessA (Process pl)
-    | AbstractionA (Abstraction pl)
-    | ConcretionA (Concretion pl)
+data Agent ξ
+    = ProcessA (Process ξ)
+    | AbstractionA (Abstraction ξ)
+    | ConcretionA (Concretion ξ)
     deriving (Eq, Ord)
 
-concretionFrom :: Pattern pl ⇒ Agent pl → Concretion pl
+concretionFrom :: Pattern ξ ⇒ Agent ξ → Concretion ξ
 concretionFrom (ConcretionA c) = c
 concretionFrom _ = error "Not a concretion"
 
-instance Pattern pl ⇒ NQTerm (Agent pl) where
+instance Pattern ξ ⇒ NQTerm (Agent ξ) where
     freeNames (ProcessA p) = freeNames p
     freeNames (AbstractionA f) = freeNames f
     freeNames (ConcretionA c) = freeNames c
 
-instance Pattern pl ⇒ ProtoTerm (Agent pl) where
+instance Pattern ξ ⇒ ProtoTerm (Agent ξ) where
     -- structural congruence
     (ProcessA p) ≣ (ProcessA q) = p ≣ q
     (AbstractionA f) ≣ (AbstractionA f') = f ≣ f'
     (ConcretionA c) ≣ (ConcretionA c') = c ≣ c'
     _ ≣ _ = False
 
-instance Pattern pl ⇒ Term (Agent pl) where
+instance Pattern ξ ⇒ Term (Agent ξ) where
     freeVariables (ProcessA p) = freeVariables p
     freeVariables (AbstractionA f) = freeVariables f
     freeVariables (ConcretionA c) = freeVariables c
 
-compose :: Pattern pl ⇒ Agent pl → Agent pl → Maybe (Agent pl)
+compose :: Pattern ξ ⇒ Agent ξ → Agent ξ → Maybe (Agent ξ)
 compose (ProcessA p) (ProcessA q) = Just (ProcessA (composeProcesses p q))
 compose (AbstractionA f) (ProcessA q) =
     Just (AbstractionA (ApplicationAbstraction f (Concretion (∅) (∅) q)))
@@ -158,7 +158,7 @@ compose (ConcretionA (Concretion a ω p)) (ConcretionA (Concretion c ω' p')) =
 compose _ _ = Nothing
 
 -- pseudo-application
-papp :: Pattern pl ⇒ Abstraction pl → Concretion pl → Maybe (Process pl)
+papp :: Pattern ξ ⇒ Abstraction ξ → Concretion ξ → Maybe (Process ξ)
 papp (ApplicationAbstraction f c) c' =
     papp f =<< concretionFrom <$> (compose (ConcretionA c) (ConcretionA c'))
 papp (SimpleAbstraction (PatternAbstraction ξ r)) (Concretion a ω p) =
@@ -228,8 +228,8 @@ commit par@(ParallelComposition p q) (Composition α β) =
     then case α of
            Complete → Nothing
            _ → case sequence [commit p α, commit q β] of
-                 Just x -> Data.Foldable.foldrM compose (ProcessA NullProcess) x
-                 Nothing -> Nothing
+                 Just x → Data.Foldable.foldrM compose (ProcessA NullProcess) x
+                 Nothing → Nothing
     else Nothing
 -- T.Par.L, .R
 commit par@(ParallelComposition p q) α =

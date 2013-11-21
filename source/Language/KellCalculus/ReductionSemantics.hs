@@ -20,11 +20,11 @@ import Language.Common.SetLike
 
 import Language.KellCalculus.AST
 
-when :: Bool -> a -> Maybe a
+when :: Bool → a → Maybe a
 when True x = Just x
 when False _ = Nothing
 
-(↝) :: Pattern pl ⇒ Process pl → Maybe (Process pl)
+(↝) :: Pattern ξ ⇒ Process ξ → Maybe (Process ξ)
 -- SR.Ctx
 (↝) r = traverseEC sr r
     -- SR.Kell
@@ -43,12 +43,12 @@ when False _ = Nothing
                    (Restriction a (ParallelComposition q p))
           -- FIXME: missing SR.α
           sr p = Just p
-subReduce :: Pattern pl ⇒ Process pl → Maybe (Process pl)
+subReduce :: Pattern ξ ⇒ Process ξ → Maybe (Process ξ)
 subReduce = (↝)
 
-(/↝) :: Pattern pl ⇒ Process pl → Bool
+(/↝) :: Pattern ξ ⇒ Process ξ → Bool
 (/↝) p = isNothing (p ↝)
-isInNormalForm :: Pattern pl ⇒ Process pl → Bool
+isInNormalForm :: Pattern ξ ⇒ Process ξ → Bool
 isInNormalForm = (/↝)
 -- FIXME: Use this when the related bug is fixed:
 --        http://ghc.haskell.org/trac/ghc/ticket/7650

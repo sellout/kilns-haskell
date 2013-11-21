@@ -1,3 +1,8 @@
+{-#
+  LANGUAGE
+  UnicodeSyntax
+  #-}
+
 module Language.KellCalculus.FraKtal
     (FraKtal(..)) where
 
@@ -13,7 +18,7 @@ import Language.KellCalculus.AST
 import Language.KellCalculus.Parser
 
 class SubPattern ξ where
-    matchR :: ξ -> Process FraKtal -> Maybe (Substitution FraKtal)
+    matchR :: ξ → Process FraKtal → Maybe (Substitution FraKtal)
 
 data MessageTag = Local | Up | Down
                 deriving (Eq, Ord, Show)
@@ -44,11 +49,11 @@ p' :: Parser Char P'
 p' = (bindingTok <~> variable ==> P'Variable . snd)
      <|> (p ==> P'P)
      <|> (startMessageTok |~| bindingTok <~> name >~< p' |~| endMessageTok
-          ==> (\(_, (_, (a, (p, _)))) -> P'Message a p))
+          ==> (\(_, (_, (a, (p, _)))) → P'Message a p))
      <|> (startMessageTok |~| startFormTok |~| terS "/=" >~< name |~| endFormTok >~< p' |~| endMessageTok
-          ==> (\(_, (_, (_, (a, (_, (p, _)))))) -> P'Complement a p))
+          ==> (\(_, (_, (_, (a, (_, (p, _)))))) → P'Complement a p))
      <|> (startMessageTok |~| startFormTok |~| terS "/=" >~< name >~< bindingTok <~> name |~| endFormTok >~< p' |~| endMessageTok
-          ==> (\(_, (_, (_, (a, (_, (m, (_, (p, _)))))))) -> P'BoundComplement m a p))
+          ==> (\(_, (_, (_, (a, (_, (m, (_, (p, _)))))))) → P'BoundComplement m a p))
      <|> (ter '_' ==> const Blank)
 
 data P = PMessage Name P'
@@ -57,9 +62,9 @@ data P = PMessage Name P'
 
 p :: Parser Char P
 p = (startMessageTok |~| name >~< p' |~| endMessageTok
-     ==> (\(_, (a, (p, _))) -> PMessage a p))
+     ==> (\(_, (a, (p, _))) → PMessage a p))
     <|> (startFormTok |~| parTok <~> starw p |~| endFormTok
-         ==> (\(_, (_, (p, _))) -> foldr1 PParallelComposition p))
+         ==> (\(_, (_, (p, _))) → foldr1 PParallelComposition p))
 
 data J = JMessage MessageTag Name P'
        | JParallelComposition J J
@@ -67,18 +72,18 @@ data J = JMessage MessageTag Name P'
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMessageTok |~| endFormTok
-     ==> (\(_, (tag, (_, (a, (p, _))))) -> JMessage tag a p))
+     ==> (\(_, (tag, (_, (a, (p, _))))) → JMessage tag a p))
     <|> (startMessageTok |~| name >~< p' |~| endMessageTok
-         ==> (\(_, (a, (p, _))) -> JMessage Local a p))
+         ==> (\(_, (a, (p, _))) → JMessage Local a p))
     <|> (startFormTok |~| parTok <~> starw j |~| endFormTok
-         ==> (\(_, (_, (p, _))) -> foldr1 JParallelComposition p))
+         ==> (\(_, (_, (p, _))) → foldr1 JParallelComposition p))
 
 data KellMessage = JKellMessage Name Variable
                  deriving (Eq, Ord, Show)
 
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< variable |~| endKellTok
-              ==> (\(_, (a, (x, _))) -> JKellMessage a x)
+              ==> (\(_, (a, (x, _))) → JKellMessage a x)
 
 data FraKtal
     = J J
@@ -110,7 +115,7 @@ instance SubPattern P' where
         else Nothing
     matchR _ _ = Nothing
 
-toPattern :: P -> FraKtal
+toPattern :: P → FraKtal
 toPattern p = J (toJ p)
     where toJ (PMessage a p) = JMessage Local a p
           toJ (PParallelComposition p q) = JParallelComposition (toJ p) (toJ q)
@@ -198,4 +203,4 @@ instance Pattern FraKtal where
     grammar = (j ==> J)
               <|> (kellMessage ==> JKKellMessage)
               <|> (startFormTok |~| parTok <~> starw j >~< kellMessage |~| endFormTok
-                   ==> (\(_, (_, (j, (k, _)))) -> JKParallelComposition (foldr1 JParallelComposition j) k))
+                   ==> (\(_, (_, (j, (k, _)))) → JKParallelComposition (foldr1 JParallelComposition j) k))

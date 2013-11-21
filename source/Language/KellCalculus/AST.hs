@@ -57,17 +57,17 @@ data Variable = Variable String deriving (Eq, Ord, Show)
 instance ProtoTerm Variable where
     (Variable a) ≣ (Variable b) = a == b
 
-data Process pl
+data Process ξ
     = NullProcess
     | ProcessVariable Variable
-    | Trigger pl (Process pl)
-    | Restriction (Set Name) (Process pl)
-    | Message Name (Process pl) (Process pl)
-    | ParallelComposition (Process pl) (Process pl)
-    | Kell Name (Process pl) (Process pl)
+    | Trigger ξ (Process ξ)
+    | Restriction (Set Name) (Process ξ)
+    | Message Name (Process ξ) (Process ξ)
+    | ParallelComposition (Process ξ) (Process ξ)
+    | Kell Name (Process ξ) (Process ξ)
     deriving (Eq, Ord, Show)
 
-instance Pattern pl ⇒ NQTerm (Process pl) where
+instance Pattern ξ ⇒ NQTerm (Process ξ) where
     freeNames NullProcess = (∅)
     freeNames (ProcessVariable _) = (∅)
     freeNames (Restriction a p) = freeNames p ∖ a
@@ -76,7 +76,7 @@ instance Pattern pl ⇒ NQTerm (Process pl) where
     freeNames (ParallelComposition p q) = freeNames p ∪ freeNames q
     freeNames (Trigger ξ p) = freeNames ξ ∪ (freeNames p ∖ boundNames ξ)
 
-instance Pattern pl ⇒ ProtoTerm (Process pl) where
+instance Pattern ξ ⇒ ProtoTerm (Process ξ) where
     -- structural congruence
     -- S.Par.A
     ParallelComposition (ParallelComposition p1 q1) r1
@@ -104,7 +104,7 @@ instance Pattern pl ⇒ ProtoTerm (Process pl) where
     p ≣ q = p == q
     -- S.Context
 
-instance Pattern pl ⇒ Term (Process pl) where
+instance Pattern ξ ⇒ Term (Process ξ) where
     freeVariables NullProcess = (∅)
     freeVariables (ProcessVariable x) = Set.singleton x
     freeVariables (Restriction _ p) = freeVariables p
@@ -128,28 +128,28 @@ composeProcesses p c@(ParallelComposition _ _) = ParallelComposition p c
 composeProcesses c@(ParallelComposition _ _) p = ParallelComposition p c
 composeProcesses p q = ParallelComposition p q
 
-data AnnotatedMessage pl
-    = LocalMessage Name (Process pl)
-    | UpMessage Name (Process pl) Name
-    | DownMessage Name (Process pl) Name
-    | KellMessage Name (Process pl)
+data AnnotatedMessage ξ
+    = LocalMessage Name (Process ξ)
+    | UpMessage Name (Process ξ) Name
+    | DownMessage Name (Process ξ) Name
+    | KellMessage Name (Process ξ)
     deriving (Eq, Ord)
 
-instance Pattern pl ⇒ NQTerm (AnnotatedMessage pl) where
+instance Pattern ξ ⇒ NQTerm (AnnotatedMessage ξ) where
     freeNames (LocalMessage a p) = freeNames a ∪ freeNames p
     -- TODO: should the source kell name be free or not?
     freeNames (UpMessage a p _) = freeNames a ∪ freeNames p
     freeNames (DownMessage a p _) = freeNames a ∪ freeNames p
     freeNames (KellMessage a p) = freeNames a ∪ freeNames p
 
-instance Pattern pl ⇒ ProtoTerm (AnnotatedMessage pl) where
+instance Pattern ξ ⇒ ProtoTerm (AnnotatedMessage ξ) where
     (LocalMessage a p) ≣ (LocalMessage b q) = a ≣ b ∧ p ≣ q
     (UpMessage a p k) ≣ (UpMessage b q l) = a ≣ b ∧ p ≣ q ∧ k ≣ l
     (DownMessage a p k) ≣ (DownMessage b q l) = a ≣ b ∧ p ≣ q ∧ k ≣ l
     (KellMessage a p) ≣ (KellMessage b q) = a ≣ b ∧ p ≣ q
     _ ≣ _ = False
 
-instance Pattern pl ⇒ Term (AnnotatedMessage pl) where
+instance Pattern ξ ⇒ Term (AnnotatedMessage ξ) where
     freeVariables (LocalMessage a p) = freeVariables a ∪ freeVariables p
     freeVariables (UpMessage a p _) = freeVariables a ∪ freeVariables p
     freeVariables (DownMessage a p _) = freeVariables a ∪ freeVariables p
@@ -195,13 +195,13 @@ instance AnyContext ExecutionContext where
     fillHole (KellEC a c q)              p = Kell a (fillHole c p) q
     fillHole (ParallelCompositionEC p c) q = ParallelComposition p (fillHole c q)
 
-andThen :: Maybe a -> Maybe a -> Maybe a
+andThen :: Maybe a → Maybe a → Maybe a
 x `andThen` y = case x of
-                  Just _ -> y
-                  Nothing -> Nothing
+                  Just _ → y
+                  Nothing → Nothing
 
-traverseEC :: Pattern ξ =>
-             (Process ξ -> Maybe (Process ξ)) -> Process ξ -> Maybe (Process ξ)
+traverseEC :: Pattern ξ ⇒
+             (Process ξ → Maybe (Process ξ)) → Process ξ → Maybe (Process ξ)
 traverseEC f (Restriction a p) =
     let sub = traverseEC f p in sub `andThen` f (Restriction a (Maybe.fromJust sub))
 traverseEC f (Kell a p q) =
@@ -210,19 +210,19 @@ traverseEC f (ParallelComposition p q) =
     let sub1 = traverseEC f p
         sub2 = traverseEC f q in
     case sub1 of
-      Just p' -> case sub2 of
-                  Just q' -> f (ParallelComposition p' q')
-                  Nothing -> f (ParallelComposition p' q)
-      Nothing -> case sub2 of
-                  Just q' -> f (ParallelComposition p q')
-                  Nothing -> Nothing
+      Just p' → case sub2 of
+                  Just q' → f (ParallelComposition p' q')
+                  Nothing → f (ParallelComposition p' q)
+      Nothing → case sub2 of
+                  Just q' → f (ParallelComposition p q')
+                  Nothing → Nothing
 traverseEC f p = f p
 
 -- data ExecutionContextTree ξ = Leaf (Process ξ)
 --                             | Branch (ExecutionContext ξ)
 --                                      [ExecutionContextTree ξ]
 
--- extractTerms :: Pattern ξ => Process ξ -> ExecutionContextTree ξ
+-- extractTerms :: Pattern ξ ⇒ Process ξ → ExecutionContextTree ξ
 -- extractTerms p = Branch (HoleEC Hole) (p : subExtractTerms p)
 --     where subExtractTerms (Restriction a p) =
 --               [Branch (RestrictionEC a Hole) (Leaf p : subExtractTerms p)]
@@ -278,7 +278,7 @@ match ξr m = let ξrs = MultiSet.elems (toMultiSet ξr)
 --           ∧ (boundNames ξ ∪ boundVariables ξ)
 --              = (boundNames ζ ∪ boundVariables ζ)`
 
-substitute :: Pattern pl ⇒ Process pl → Substitution pl → Process pl
+substitute :: Pattern ξ ⇒ Process ξ → Substitution ξ → Process ξ
 substitute p θ@(Substitution nm vm) =
     case p of
       NullProcess → NullProcess
@@ -303,5 +303,5 @@ substitute p θ@(Substitution nm vm) =
 
 -- this allows us to configure how we select a substitution from the set of
 -- possibilities
-chooseSubstitution :: Pattern pl ⇒ Set (Substitution pl) → (Substitution pl)
+chooseSubstitution :: Pattern ξ ⇒ Set (Substitution ξ) → (Substitution ξ)
 chooseSubstitution = Set.findMin
