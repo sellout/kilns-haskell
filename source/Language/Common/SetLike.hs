@@ -18,19 +18,24 @@ class SetLike sl where
     (∩) :: Ord t => sl t -> sl t -> sl t
     (∪) :: Ord t => sl t -> sl t -> sl t
     (∖) :: Ord t => sl t -> sl t -> sl t
+    (⊂) :: Ord t => sl t -> sl t -> Bool
+    (⊆) :: Ord t => sl t -> sl t -> Bool
 
 instance SetLike Set where
     (∅) = Set.empty
     (∩) = Set.intersection
     (∪) = Set.union
     (∖) = Set.difference
--- (∉) = Set.notMember
+    (⊂) = Set.isProperSubsetOf
+    (⊆) = Set.isSubsetOf
 
 instance SetLike MultiSet where
     (∅) = MultiSet.empty
     (∩) = MultiSet.intersection
     (∪) = MultiSet.union
     (∖) = MultiSet.difference
+    (⊂) = MultiSet.isProperSubsetOf
+    (⊆) = MultiSet.isSubsetOf
 
 class MultiSettable ms where
     -- this “flattens” a pattern to a multiset. Whereas a full pattern may have
