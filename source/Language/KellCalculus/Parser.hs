@@ -120,13 +120,13 @@ name :: Parser Char Name
 name = identifier ==> Name
 
 instance Show (SexpSyntax Name) where
-    show (SexpSyntax (Name identifier)) = identifier
+    show (SexpSyntax (Name ident)) = ident
 
 variable :: Parser Char Variable
 variable = identifier ==> Variable
 
 instance Show (SexpSyntax Variable) where
-    show (SexpSyntax (Variable identifier)) = identifier
+    show (SexpSyntax (Variable ident)) = ident
 
 nullProcess :: Pattern ξ => Parser Char (Process ξ)
 nullProcess = nullTok ==> const NullProcess
@@ -189,7 +189,7 @@ instance (Pattern ξ, Show (SexpSyntax ξ)) ⇒ Show (SexpSyntax (Process ξ)) w
     show (SexpSyntax k) =
         case k of
           NullProcess → "null"
-          ProcessVariable variable → show (SexpSyntax variable)
+          ProcessVariable var → show (SexpSyntax var)
           Trigger ξ p →
                "(trigger " ++ show (SexpSyntax ξ) ++ " " ++
                show (SexpSyntax p) ++ ")"
