@@ -6,7 +6,7 @@
 
 module Language.KellCalculus.ReductionSemantics
     ((↝), subReduce,
-     (/↝), isInNormalForm,
+     (/↝),
      δ, υ, ψ,
     reduce) where
 
@@ -46,13 +46,13 @@ when False _ = Nothing
 subReduce :: Pattern ξ ⇒ Process ξ → Maybe (Process ξ)
 subReduce = (↝)
 
-(/↝) :: Pattern ξ ⇒ Process ξ → Bool
-(/↝) p = isNothing (p ↝)
-isInNormalForm :: Pattern ξ ⇒ Process ξ → Bool
-isInNormalForm = (/↝)
+(/↝) :: Pattern ξ ⇒ Process ξ → Process ξ
+(/↝) p = case (p ↝) of
+           Just p' → (p' /↝)
+           Nothing → p
 -- FIXME: Use this when the related bug is fixed:
 --        http://ghc.haskell.org/trac/ghc/ticket/7650
--- (↝̷) = isInNormalForm
+-- (↝̷) = (/↝)
 
 δ :: Pattern ξ ⇒ MultiSet (Process ξ) → (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 δ s = foldMap (\(Message a p q) → (MultiSet.singleton (LocalMessage a p),

@@ -190,9 +190,13 @@ commit (Message a1 p q) (Receive a2) =
     then Just (ConcretionA (Concretion (∅) (MultiSet.singleton (LocalMessage a1 p)) q))
     else Nothing
 -- T.Kell
-commit k@(Kell a1 p q) (Receive a2) = if a1 == a2 ∧ (k /↝)
-                                      then Just (ConcretionA (Concretion (∅) (MultiSet.singleton (KellMessage a1 p)) q))
-                                      else Nothing
+commit k@(Kell a1 _ _) (Receive a2) =
+    if a1 == a2
+    then case (k /↝) of
+           Kell a1 p q → Just (ConcretionA (Concretion (∅)
+                                                       (MultiSet.singleton (KellMessage a1 p))
+                                                       q))
+    else Nothing
 -- T.Trig
 commit (Trigger ξ p) α =
     if MultiSet.map Receive (sk ξ) == toMultiSet α
@@ -206,42 +210,41 @@ commit (Restriction a p) α = if α /= Complete ∧ Set.null (a ∩ freeNames α
                                     Nothing → Nothing
                              else Nothing
 -- T.Kell.C, .F, .P
-commit k@(Kell a p r) α =
-    if (k /↝)
-    then case commit p α of
-           Just (ConcretionA (Concretion b mm q)) →
-                if Set.null b
-                then Just (ConcretionA (Concretion (∅)
-                                                   (MultiSet.map (\(LocalMessage c s) → DownMessage c s a)
-                                                                 mm)
-                                                   (Kell a q r)))
-                else Nothing
-           Just (AbstractionA (SimpleAbstraction g)) →
-               Just (AbstractionA (KellAbstraction a g r))
-           Just (ProcessA q) → Just (ProcessA (Kell a q r))
-           Just _ → Nothing
-           Nothing → Nothing
-    else Nothing
+commit k@(Kell _ _ _) α =
+    case (k /↝) of
+      Kell a p r -> case commit p α of
+                     Just (ConcretionA (Concretion b mm q)) →
+                          if Set.null b
+                          then Just (ConcretionA (Concretion (∅)
+                                                             (MultiSet.map (\(LocalMessage c s) → DownMessage c s a)
+                                                                           mm)
+                                                             (Kell a q r)))
+                          else Nothing
+                     Just (AbstractionA (SimpleAbstraction g)) →
+                          Just (AbstractionA (KellAbstraction a g r))
+                     Just (ProcessA q) → Just (ProcessA (Kell a q r))
+                     Just _ → Nothing
+                     Nothing → Nothing
 -- T.Par.FC
-commit par@(ParallelComposition p q) (Composition α β) =
-    if (par /↝)
-    then case α of
-           Complete → Nothing
-           _ → case sequence [commit p α, commit q β] of
-                 Just x → Data.Foldable.foldrM compose (ProcessA NullProcess) x
-                 Nothing → Nothing
-    else Nothing
+commit par@(ParallelComposition _ _) (Composition α β) =
+    case (par /↝) of
+      ParallelComposition p q →
+                  case α of
+                    Complete → Nothing
+                    _ → case sequence [commit p α, commit q β] of
+                          Just x → Data.Foldable.foldrM compose (ProcessA NullProcess) x
+                          Nothing → Nothing
 -- T.Par.L, .R
-commit par@(ParallelComposition p q) α =
-    if (par /↝)
-    then case α of
-           Complete → Nothing
-           _ → case commit p α of
-                 Just a → compose a (ProcessA q)
-                 Nothing → case commit p α of
-                             Just a → compose a (ProcessA q)
-                             Nothing → Nothing
-    else Nothing
+commit par@(ParallelComposition _ _) α =
+    case (par /↝) of
+     ParallelComposition p q →
+                  case α of
+                    Complete → Nothing
+                    _ → case commit p α of
+                          Just a → compose a (ProcessA q)
+                          Nothing → case commit p α of
+                                      Just a → compose a (ProcessA q)
+                                      Nothing → Nothing
 -- T.Par.CC
 
 -- T.Red
