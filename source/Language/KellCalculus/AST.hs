@@ -235,9 +235,9 @@ traverseEC f p = f p
 --                       (Leaf p : subExtractTerms p)]
 
 data Substitution ξ = Substitution (Map Name Name) (Map Variable (Process ξ))
-                    deriving (Eq, Ord, Show)
+                    deriving (Eq, Ord)
 
-class (MultiSettable ξ, NQTerm ξ, ProtoTerm ξ) ⇒ Pattern ξ where
+class (MultiSettable ξ, NQTerm ξ, ProtoTerm ξ, Show ξ) ⇒ Pattern ξ where
     matchM :: ξ → AnnotatedMessage ξ → Maybe (Substitution ξ)
     boundNames :: ξ → Set Name
     boundVariables :: ξ → Set Variable

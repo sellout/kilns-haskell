@@ -22,7 +22,7 @@ class SubPattern ξ where
     matchR :: ξ → Process PnpJKPattern → Maybe (Substitution PnpJKPattern)
 
 data MessageTag = Local | Up | Down
-                deriving (Eq, Ord)
+                deriving (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
 messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
@@ -31,7 +31,7 @@ data P' = P'Variable Variable
         | P'P P
         | P'Message Name P'
         | Blank
-        deriving (Eq, Ord)
+        deriving (Eq, Ord, Show)
 
 instance ProtoTerm P' where
     P'Variable _ ≣ P'Variable _ = True
@@ -51,7 +51,7 @@ p' = (bindingTok <~> identifier ==> (\(_, x) → P'Variable (Variable x)))
 
 data P = PMessage Name P'
        | PParallelComposition P P
-       deriving (Eq, Ord)
+       deriving (Eq, Ord, Show)
 
 p :: Parser Char P
 p = (startMessageTok |~| name >~< p' |~| endMessageTok
@@ -61,7 +61,7 @@ p = (startMessageTok |~| name >~< p' |~| endMessageTok
 
 data J = JMessage MessageTag Name P'
        | JParallelComposition J J
-       deriving (Eq, Ord)
+       deriving (Eq, Ord, Show)
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMessageTok |~| endFormTok
@@ -72,7 +72,7 @@ j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMess
          ==> (\(_, (_, (p, _))) → foldr1 JParallelComposition p))
 
 data KellMessage = JKellMessage Name Variable
-                 deriving (Eq, Ord)
+                 deriving (Eq, Ord, Show)
 
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< bindingTok <~> identifier |~| endKellTok
@@ -82,7 +82,7 @@ data PnpJKPattern
     = J J
     | JKKellMessage KellMessage
     | JKParallelComposition J KellMessage
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 instance MultiSettable PnpJKPattern where
     toMultiSet m@(J (JMessage _ _ _)) = MultiSet.singleton m

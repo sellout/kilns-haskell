@@ -1,5 +1,6 @@
 {-#
   LANGUAGE
+  FlexibleInstances,
   UnicodeSyntax
   #-}
 
@@ -19,14 +20,23 @@ import Language.KellCalculus.AST
 import Language.KellCalculus.Parser
 
 data MessageTag = Local | Up | Down
-                deriving (Eq, Ord)
+                deriving (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
 messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
 
 data J = JMessage MessageTag Name Variable
        | JParallelComposition J J
-       deriving (Eq, Ord)
+       deriving (Eq, Ord, Show)
+
+instance Show (SexpSyntax J) where
+    show (SexpSyntax ξ) =
+        case ξ of
+          JMessage Local n v -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "}"
+          JMessage Up n v -> "(up " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+          JMessage Down n v -> "(down " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+          JParallelComposition j j' -> show (SexpSyntax j) ++ " " ++
+                                      show (SexpSyntax j')
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< variable |~| endMessageTok |~| endFormTok
@@ -37,7 +47,11 @@ j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< variable |~| e
          ==> (\(_, (_, (p, _))) → foldr1 JParallelComposition p))
 
 data KellMessage = JKellMessage Name Variable
-                 deriving (Eq, Ord)
+                 deriving (Eq, Ord, Show)
+
+instance Show (SexpSyntax KellMessage) where
+    show (SexpSyntax (JKellMessage n v)) =
+        "[" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "]"
 
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< bindingTok <~> variable |~| endKellTok
@@ -47,8 +61,16 @@ data JKPattern
     = J J
     | JKKellMessage KellMessage
     | JKParallelComposition J KellMessage
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
+instance Show (SexpSyntax JKPattern) where
+    show (SexpSyntax ξ) =
+        case ξ of
+          J j -> show (SexpSyntax j)
+          JKKellMessage k -> show (SexpSyntax k)
+          JKParallelComposition j k -> "(par " ++ show (SexpSyntax j) ++
+                                      " " ++ show (SexpSyntax k) ++ ")"
+             
 instance NQTerm JKPattern where
     freeNames (J (JMessage _ a _)) = Set.singleton a
     freeNames (J (JParallelComposition ξ1 ξ2)) =

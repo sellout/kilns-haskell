@@ -1,3 +1,10 @@
+{-#
+  LANGUAGE
+  UnicodeSyntax,
+  FlexibleContexts,
+  FlexibleInstances
+  #-}
+
 module Language.KellCalculus.Parser
     (process, name, variable, identifier,
      startKellTok, endKellTok,
@@ -6,12 +13,14 @@ module Language.KellCalculus.Parser
      parTok,
      nullTok,
      bindingTok,
-     (>~<), (|~|), starw, star1w) where
+     (>~<), (|~|), starw, star1w,
+     SexpSyntax(..)) where
 
 import qualified Data.CharSet as CharSet
 import qualified Data.CharSet.Unicode.Category as Unicode
 import Data.Functor
 import Data.Maybe
+import qualified Data.List as List
 import qualified Data.Set as Set
 
 import Text.Derp
@@ -99,11 +108,19 @@ identifier = terM (Set.fromList (CharSet.toList Unicode.letter))
 --              startMessageTok, endMessageTok,
 --              startFormTok, endFormTok])
 
+newtype SexpSyntax a = SexpSyntax { getSexpSyntax :: a }
+
 name :: Parser Char Name
 name = identifier ==> Name
 
+instance Show (SexpSyntax Name) where
+    show (SexpSyntax (Name identifier)) = identifier
+
 variable :: Parser Char Variable
 variable = identifier ==> Variable
+
+instance Show (SexpSyntax Variable) where
+    show (SexpSyntax (Variable identifier)) = identifier
 
 nullProcess :: Pattern ξ => Parser Char (Process ξ)
 nullProcess = nullTok ==> const NullProcess
@@ -161,3 +178,24 @@ process ξ = whitespace' <~>
              continuation ξ) <~>
             whitespace'
             ==> fst . snd
+
+instance (Pattern ξ, Show (SexpSyntax ξ)) ⇒ Show (SexpSyntax (Process ξ)) where
+    show (SexpSyntax k) =
+        case k of
+          NullProcess → "null"
+          ProcessVariable variable → show (SexpSyntax variable)
+          Trigger ξ p →
+               "(trigger " ++ show (SexpSyntax ξ) ++ " " ++
+               show (SexpSyntax p) ++ ")"
+          Restriction a p →
+               "(new (" ++ List.intercalate " " (map (show . SexpSyntax) (Set.toList a)) ++ ") " ++
+               show (SexpSyntax p) ++ ")"
+          Message a NullProcess NullProcess → "{" ++ show (SexpSyntax a) ++ "}"
+          Message a p NullProcess → "{" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "}"
+          Message a p q →
+               "(cont {" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "} " ++ show (SexpSyntax q) ++ ")"
+          ParallelComposition p q → "(par " ++ show (SexpSyntax p) ++ " " ++ show (SexpSyntax q) ++ ")"
+          Kell a NullProcess NullProcess → "[" ++ show (SexpSyntax a) ++ "]"
+          Kell a p NullProcess → "[" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "]"
+          Kell a p q →
+               "(cont [" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "] " ++ show (SexpSyntax q) ++ ")"
