@@ -1,5 +1,6 @@
 {-#
   LANGUAGE
+  FlexibleInstances,
   UnicodeSyntax
   #-}
 
@@ -45,6 +46,16 @@ instance ProtoTerm P' where
     Blank ≣ Blank = True
     _ ≣ _ = False
 
+instance Show (SexpSyntax P') where
+    show (SexpSyntax ξ) =
+        case ξ of
+          P'Variable v -> "?" ++ show (SexpSyntax v)
+          P'P p -> show (SexpSyntax p)
+          P'Message n p -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax p) ++ "}"
+          P'Complement n p -> "{(/= " ++ show (SexpSyntax n) ++ ") " ++ show (SexpSyntax p) ++ "}"
+          P'BoundComplement n b p -> "{(/= " ++ show (SexpSyntax n) ++ " ?" ++ show (SexpSyntax b) ++ ") " ++ show (SexpSyntax p) ++ "}"
+          Blank -> "_"
+            
 p' :: Parser Char P'
 p' = (bindingTok <~> variable ==> P'Variable . snd)
      <|> (p ==> P'P)
@@ -60,6 +71,12 @@ data P = PMessage Name P'
        | PParallelComposition P P
        deriving (Eq, Ord, Show)
 
+instance Show (SexpSyntax P) where
+    show (SexpSyntax ξ) =
+        case ξ of
+          PMessage n p -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax p) ++ "}"
+          PParallelComposition p q -> "(par " ++ show (SexpSyntax p) ++ " " ++ show (SexpSyntax q) ++ ")"
+
 p :: Parser Char P
 p = (startMessageTok |~| name >~< p' |~| endMessageTok
      ==> (\(_, (a, (p, _))) → PMessage a p))
@@ -69,6 +86,15 @@ p = (startMessageTok |~| name >~< p' |~| endMessageTok
 data J = JMessage MessageTag Name P'
        | JParallelComposition J J
        deriving (Eq, Ord, Show)
+
+instance Show (SexpSyntax J) where
+    show (SexpSyntax ξ) =
+        case ξ of
+          JMessage Local n v -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "}"
+          JMessage Up n v -> "(up " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+          JMessage Down n v -> "(down " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+          JParallelComposition j j' -> show (SexpSyntax j) ++ " " ++
+                                      show (SexpSyntax j')
 
 j :: Parser Char J
 j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMessageTok |~| endFormTok
@@ -81,6 +107,10 @@ j = (startFormTok |~| messageTag >~< startMessageTok |~| name >~< p' |~| endMess
 data KellMessage = JKellMessage Name Variable
                  deriving (Eq, Ord, Show)
 
+instance Show (SexpSyntax KellMessage) where
+    show (SexpSyntax (JKellMessage n v)) =
+        "[" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "]"
+
 kellMessage :: Parser Char KellMessage
 kellMessage = startKellTok |~| name >~< variable |~| endKellTok
               ==> (\(_, (a, (x, _))) → JKellMessage a x)
@@ -90,6 +120,14 @@ data FraKtal
     | JKKellMessage KellMessage
     | JKParallelComposition J KellMessage
     deriving (Eq, Ord, Show)
+
+instance Show (SexpSyntax FraKtal) where
+    show (SexpSyntax ξ) =
+        case ξ of
+          J j -> show (SexpSyntax j)
+          JKKellMessage k -> show (SexpSyntax k)
+          JKParallelComposition j k -> "(par " ++ show (SexpSyntax j) ++
+                                      " " ++ show (SexpSyntax k) ++ ")"
 
 instance MultiSettable FraKtal where
     toMultiSet m@(J (JMessage _ _ _)) = MultiSet.singleton m

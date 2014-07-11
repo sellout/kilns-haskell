@@ -17,9 +17,11 @@ import Language.KellCalculus.FraKtal
 import Language.KellCalculus.Parser
 import Language.KellCalculus.ReductionSemantics
 
-syntax :: Show a => a -> a
-syntax = id
---syntax = SexpSyntax
+
+-- syntax :: Show a => a -> a
+-- syntax = id
+syntax :: Show a => a → SexpSyntax a
+syntax = SexpSyntax
  
 parse :: String -> Set (Process FraKtal)
 parse s = runParse (process grammar)

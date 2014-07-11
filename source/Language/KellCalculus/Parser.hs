@@ -110,6 +110,12 @@ identifier = terM (Set.fromList (CharSet.toList Unicode.letter))
 
 newtype SexpSyntax a = SexpSyntax { getSexpSyntax :: a }
 
+instance Eq a => Eq (SexpSyntax a) where
+    SexpSyntax l == SexpSyntax r = l == r
+    
+instance Ord a => Ord (SexpSyntax a) where
+    SexpSyntax l <= SexpSyntax r = l <= r
+
 name :: Parser Char Name
 name = identifier ==> Name
 
