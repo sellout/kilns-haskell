@@ -96,18 +96,31 @@ subReduce = (↝)
     )
     s
 
-partitionProcesses :: (Pattern ξ) => Process ξ -> [MultiSet (Process ξ)]
-partitionProcesses p@(Message _ _ _) = [MultiSet.singleton p, (∅), (∅)]
+-- | Partitions processes into three multisets:
+--
+-- 1. messages
+-- 2. kells
+-- 3. also kells
+--
+--   discarding anything else. These are used as inputs for the predicates `δ`,
+--  `υ`, and `ψ`, respectively.
+partitionProcesses ::
+  (Pattern ξ) =>
+  Process ξ ->
+  (MultiSet (Process ξ), MultiSet (Process ξ), MultiSet (Process ξ))
+partitionProcesses p@(Message _ _ _) = (MultiSet.singleton p, (∅), (∅))
 partitionProcesses p@(Kell _ _ _) =
-  [(∅), MultiSet.singleton p, MultiSet.singleton p]
+  ((∅), MultiSet.singleton p, MultiSet.singleton p)
 partitionProcesses (ParallelComposition p q) =
-  zipWith (∪) (partitionProcesses p) (partitionProcesses q)
-partitionProcesses _ = [(∅), (∅), (∅)]
+  (\(p1, p2, p3) (q1, q2, q3) -> (p1 ∪ q1, p2 ∪ q2, p3 ∪ q3))
+    (partitionProcesses p)
+    (partitionProcesses q)
+partitionProcesses _ = ((∅), (∅), (∅))
 
 reduce :: (Pattern ξ) => Process ξ -> Maybe (Process ξ)
 -- R.Red.L
 reduce (ParallelComposition (Trigger ξ p) u) =
-  let [u1, u2, u3] = partitionProcesses u
+  let (u1, u2, u3) = partitionProcesses u
       (mm, v1) = δ u1
       (mk, v2) = υ (MultiSet.map (/↝) u2)
       (md, v3) = ψ u3
@@ -127,7 +140,7 @@ reduce
       (Kell b (ParallelComposition (Trigger ξ p) u) t)
       u4
     ) =
-    let [u1, u2, u3] = partitionProcesses u
+    let (u1, u2, u3) = partitionProcesses u
         (mm, v1) = δ u1
         (mk, v2) = υ (MultiSet.map (/↝) u2)
         (md, v3) = ψ u3

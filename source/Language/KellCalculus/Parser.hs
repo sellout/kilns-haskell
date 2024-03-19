@@ -26,7 +26,6 @@ where
 
 import qualified Data.CharSet as CharSet
 import qualified Data.CharSet.Unicode.Category as Unicode
-import Data.Functor
 import qualified Data.List as List
 import Data.Maybe
 import qualified Data.Set as Set

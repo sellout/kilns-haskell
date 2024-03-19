@@ -13,7 +13,6 @@ module Language.KellCalculus.LabeledTransitionSystem
 where
 
 import Data.Foldable
-import Data.Functor
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
 import Data.Set (Set)

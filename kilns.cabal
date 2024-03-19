@@ -35,7 +35,9 @@ library
                        multiset,
                        charset == 0.3.*,
                        base-unicode-symbols == 0.2.*
-  ghc-options: -Wall
+  ghc-options:
+    -Wall
+    -Wno-name-shadowing
 
 executable kilns
   -- .hs or .lhs file containing the Main module.

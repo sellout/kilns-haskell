@@ -3,7 +3,6 @@
 
 module Language.KellCalculus.FraKtal (FraKtal (..)) where
 
-import Data.Functor
 import qualified Data.Map as Map
 import qualified Data.MultiSet as MultiSet
 import qualified Data.Set as Set

@@ -25,7 +25,6 @@ module Language.KellCalculus.AST
 where
 
 import Data.Foldable
-import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
