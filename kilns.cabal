@@ -1,7 +1,7 @@
 name:          kilns
 version:       0.1.0.0
 synopsis:      An experimental programming language based on the kell calculus.
-description:         
+description:
 homepage:      https://github.com/sellout/Kilns
 license:       MIT
 license-file:  LICENSE
@@ -30,9 +30,9 @@ library
                    Text.Derp
   -- Other library packages from which modules are imported.
   other-modules: Language.Common.SetLike
-  build-depends:       base == 4.7.*,
-                       containers == 0.5.*,
-                       multiset == 0.2.*,
+  build-depends:       base,
+                       containers,
+                       multiset,
                        charset == 0.3.*,
                        base-unicode-symbols == 0.2.*
   ghc-options: -Wall
@@ -40,11 +40,11 @@ library
 executable kilns
   -- .hs or .lhs file containing the Main module.
   main-is: source/Language/Kilns/Interpreter/Main.hs
-  
+
   -- Modules included in this executable, other than Main.
-  -- other-modules:      
-  
-  build-depends:       base == 4.7.*,
-                       containers == 0.5.*,
+  -- other-modules:
+
+  build-depends:       base,
+                       containers,
                        kilns
   ghc-options: -Wall -Werror
