@@ -1,12 +1,10 @@
-module Language.KellCalculus.ContextBisimulation
-    (isClosed) where
+module Language.KellCalculus.ContextBisimulation (isClosed) where
 
 import qualified Data.Set as Set
-
 import Language.KellCalculus.AST
 import Language.KellCalculus.LabeledTransitionSystem
 
-isClosed :: Pattern ξ => Agent ξ -> Bool
+isClosed :: (Pattern ξ) => Agent ξ -> Bool
 isClosed = Set.null . freeVariables
 
 -- data CApplicativeContext ξ

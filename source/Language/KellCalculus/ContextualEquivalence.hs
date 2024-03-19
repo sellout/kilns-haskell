@@ -1,16 +1,11 @@
-{-#
-  LANGUAGE
-  UnicodeSyntax
-  #-}
+{-# LANGUAGE UnicodeSyntax #-}
 
-module Language.KellCalculus.ContextualEquivalence
-    ((↓)) where
+module Language.KellCalculus.ContextualEquivalence ((↓)) where
 
 import Language.Common.SetLike
-
 import Language.KellCalculus.AST
 
-(↓) :: Pattern ξ ⇒ Process ξ → Name → Bool
+(↓) :: (Pattern ξ) => Process ξ -> Name -> Bool
 Restriction c p ↓ a = if a ∉ c then p ↓ a else False
 Message b _ _ ↓ a = b ≣ a
 ParallelComposition p q ↓ a = p ↓ a || q ↓ a
