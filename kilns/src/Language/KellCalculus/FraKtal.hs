@@ -43,11 +43,11 @@ instance ProtoTerm P' where
 instance Show (SexpSyntax P') where
   show (SexpSyntax ξ) =
     case ξ of
-      P'Variable v -> "?" ++ show (SexpSyntax v)
+      P'Variable v -> "?" <> show (SexpSyntax v)
       P'P p -> show (SexpSyntax p)
-      P'Message n p -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax p) ++ "}"
-      P'Complement n p -> "{(/= " ++ show (SexpSyntax n) ++ ") " ++ show (SexpSyntax p) ++ "}"
-      P'BoundComplement n b p -> "{(/= " ++ show (SexpSyntax n) ++ " ?" ++ show (SexpSyntax b) ++ ") " ++ show (SexpSyntax p) ++ "}"
+      P'Message n p -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
+      P'Complement n p -> "{(/= " <> show (SexpSyntax n) <> ") " <> show (SexpSyntax p) <> "}"
+      P'BoundComplement n b p -> "{(/= " <> show (SexpSyntax n) <> " ?" <> show (SexpSyntax b) <> ") " <> show (SexpSyntax p) <> "}"
       Blank -> "_"
 
 p' :: Parser Char P'
@@ -91,8 +91,8 @@ data P
 instance Show (SexpSyntax P) where
   show (SexpSyntax ξ) =
     case ξ of
-      PMessage n p -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax p) ++ "}"
-      PParallelComposition p q -> "(par " ++ show (SexpSyntax p) ++ " " ++ show (SexpSyntax q) ++ ")"
+      PMessage n p -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
+      PParallelComposition p q -> "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
 
 p :: Parser Char P
 p =
@@ -117,13 +117,13 @@ data J
 instance Show (SexpSyntax J) where
   show (SexpSyntax ξ) =
     case ξ of
-      JMessage Local n v -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "}"
-      JMessage Up n v -> "(up " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
-      JMessage Down n v -> "(down " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+      JMessage Local n v -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "}"
+      JMessage Up n v -> "(up " <> show (SexpSyntax (JMessage Local n v)) <> ")"
+      JMessage Down n v -> "(down " <> show (SexpSyntax (JMessage Local n v)) <> ")"
       JParallelComposition j j' ->
         show (SexpSyntax j)
-          ++ " "
-          ++ show (SexpSyntax j')
+          <> " "
+          <> show (SexpSyntax j')
 
 j :: Parser Char J
 j =
@@ -154,7 +154,7 @@ data KellMessage = JKellMessage Name Variable
 
 instance Show (SexpSyntax KellMessage) where
   show (SexpSyntax (JKellMessage n v)) =
-    "[" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "]"
+    "[" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "]"
 
 kellMessage :: Parser Char KellMessage
 kellMessage =
@@ -177,13 +177,13 @@ instance Show (SexpSyntax FraKtal) where
       JKKellMessage k -> show (SexpSyntax k)
       JKParallelComposition j k ->
         "(par "
-          ++ show (SexpSyntax j)
-          ++ " "
-          ++ show (SexpSyntax k)
-          ++ ")"
+          <> show (SexpSyntax j)
+          <> " "
+          <> show (SexpSyntax k)
+          <> ")"
 
 instance MultiSettable FraKtal where
-  toMultiSet m@(J (JMessage _ _ _)) = MultiSet.singleton m
+  toMultiSet m@(J JMessage {}) = MultiSet.singleton m
   toMultiSet (J (JParallelComposition ξ1 ξ2)) =
     toMultiSet (J ξ1) ∪ toMultiSet (J ξ2)
   toMultiSet k@(JKKellMessage _) = MultiSet.singleton k
@@ -196,7 +196,7 @@ instance SubPattern P' where
   matchR (P'P p) q = matchR p q
   matchR (P'Message a p') (Message b p NullProcess) =
     combine
-      <$> sequence
+      <$> sequenceA
         [ Just (Substitution (Map.singleton a b) Map.empty),
           matchR p' p
         ]
@@ -206,7 +206,7 @@ instance SubPattern P' where
     if a /= b
       then
         combine
-          <$> sequence
+          <$> sequenceA
             [ Just (Substitution (Map.singleton m b) Map.empty),
               matchR p' p
             ]
@@ -222,7 +222,7 @@ toPattern p = J (toJ p)
 instance SubPattern P where
   -- would be nice to not throw away other matches at this level
   matchR p q =
-    let subst = (match (toPattern p) (toAnnotatedMessages q))
+    let subst = match (toPattern p) (toAnnotatedMessages q)
      in if Set.null subst
           then Nothing
           else Just (chooseSubstitution subst)

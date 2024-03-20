@@ -28,13 +28,13 @@ data J
 instance Show (SexpSyntax J) where
   show (SexpSyntax ξ) =
     case ξ of
-      JMessage Local n v -> "{" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "}"
-      JMessage Up n v -> "(up " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
-      JMessage Down n v -> "(down " ++ show (SexpSyntax (JMessage Local n v)) ++ ")"
+      JMessage Local n v -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "}"
+      JMessage Up n v -> "(up " <> show (SexpSyntax (JMessage Local n v)) <> ")"
+      JMessage Down n v -> "(down " <> show (SexpSyntax (JMessage Local n v)) <> ")"
       JParallelComposition j j' ->
         show (SexpSyntax j)
-          ++ " "
-          ++ show (SexpSyntax j')
+          <> " "
+          <> show (SexpSyntax j')
 
 j :: Parser Char J
 j =
@@ -65,7 +65,7 @@ data KellMessage = JKellMessage Name Variable
 
 instance Show (SexpSyntax KellMessage) where
   show (SexpSyntax (JKellMessage n v)) =
-    "[" ++ show (SexpSyntax n) ++ " " ++ show (SexpSyntax v) ++ "]"
+    "[" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "]"
 
 kellMessage :: Parser Char KellMessage
 kellMessage =
@@ -89,10 +89,10 @@ instance Show (SexpSyntax JKPattern) where
       JKKellMessage k -> show (SexpSyntax k)
       JKParallelComposition j k ->
         "(par "
-          ++ show (SexpSyntax j)
-          ++ " "
-          ++ show (SexpSyntax k)
-          ++ ")"
+          <> show (SexpSyntax j)
+          <> " "
+          <> show (SexpSyntax k)
+          <> ")"
 
 instance NQTerm JKPattern where
   freeNames (J (JMessage _ a _)) = Set.singleton a
@@ -110,7 +110,7 @@ instance ProtoTerm JKPattern where
   _ ≣ _ = False
 
 instance MultiSettable JKPattern where
-  toMultiSet m@(J (JMessage _ _ _)) = MultiSet.singleton m
+  toMultiSet m@(J JMessage {}) = MultiSet.singleton m
   toMultiSet (J (JParallelComposition ξ1 ξ2)) =
     toMultiSet (J ξ1) ∪ toMultiSet (J ξ2)
   toMultiSet k@(JKKellMessage _) = MultiSet.singleton k

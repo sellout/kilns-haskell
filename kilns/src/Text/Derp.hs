@@ -222,10 +222,14 @@ compactImp p = compactImpRec $ parserRec p
     compactImpRec (Con (Parser (Eps sM) _ _ _ _) b) = compact b ==>| (\xM -> Set.fromList [(s, x) | s <- Set.toList sM, x <- Set.toList xM])
     compactImpRec (Con a (Parser (Eps sM) _ _ _ _)) = compact a ==>| (\xM -> Set.fromList [(x, s) | x <- Set.toList xM, s <- Set.toList sM])
     compactImpRec (Con a b)
-      | parserNullable a == FPDecided False
-          && parserNullable b == FPDecided False
-          && parserEmpty a == FPDecided False
-          && parserEmpty b == FPDecided False =
+      | parserNullable a
+          == FPDecided False
+          && parserNullable b
+          == FPDecided False
+          && parserEmpty a
+          == FPDecided False
+          && parserEmpty b
+          == FPDecided False =
           pzip (compact a) (ConContext (compact b) TopContext)
     compactImpRec (Con a b) =
       (compact a <~> compact b)
@@ -312,7 +316,7 @@ deriveStep = deriveStepNum defaultCompactSteps
 --   main parsing function.  Examples:
 --
 -- > let e =     ter "num"
--- >         <|> e <~> ter "+" <~> e ==> (\(x1,(o,x2)) -> "(" ++ x1 ++ o ++ x2 ++ ")")
+-- >         <|> e <~> ter "+" <~> e ==> (\(x1,(o,x2)) -> "(" <> x1 <> o <> x2 <> ")")
 -- > in runParse e [Token "num" "1", Token "+" "+", Token "num" 3", Token "+" "+", Token "num" "5"]
 --
 -- evaluates to:
@@ -417,12 +421,12 @@ lookupId reifiedPt uidPt p
       let stblNameHashed = hashStableName stblName
       lookupValM <- liftM (extraLookup stblNameHashed stblName) $ readIORef reifiedPt
       case lookupValM of
-        (Just lookupVal) -> return lookupVal
+        (Just lookupVal) -> pure lookupVal
         Nothing -> do
           thisId <- readIORef uidPt
           modifyIORef uidPt (+ 1)
-          modifyIORef reifiedPt $ Map.insertWith (++) stblNameHashed [(stblName, thisId)]
-          return thisId
+          modifyIORef reifiedPt $ Map.insertWith (<>) stblNameHashed [(stblName, thisId)]
+          pure thisId
   | otherwise = error "seq failed"
 
 seenId :: IORef (Map Int [(StableName (), ())]) -> Parser t a -> IO Bool
@@ -432,10 +436,10 @@ seenId seenPt p
       let stblNameHashed = hashStableName stblName
       lookupValM <- liftM (extraLookup stblNameHashed stblName) $ readIORef seenPt
       case lookupValM of
-        (Just ()) -> return True
+        (Just ()) -> pure True
         Nothing -> do
-          modifyIORef seenPt $ Map.insertWith (++) stblNameHashed [(stblName, ())]
-          return False
+          modifyIORef seenPt $ Map.insertWith (<>) stblNameHashed [(stblName, ())]
+          pure False
   | otherwise = error "seq failed"
 
 genericStableName :: a -> IO (StableName ())
@@ -460,10 +464,10 @@ inspectf :: ParserFoldL t -> t -> ParserInspect t
 inspectf f i uidM isSeenM p = do
   isSeen <- isSeenM p
   if isSeen
-    then return i
+    then pure i
     else do
       uid <- uidM p
-      cuids <- mapM (runGenParser uidM) $ parserChildren p
+      cuids <- traverse (runGenParser uidM) $ parserChildren p
       let pid = hashStableName (unsafePerformIO (genericStableName p))
       let next = f i p uid (fromIntegral pid) cuids
       foldlParserChildrenM (\t p' -> inspectf f t uidM isSeenM p') next p
@@ -490,7 +494,7 @@ parserToGraph = reverse . parserDeepFoldL f []
         : others
 
 showParserGraph :: [ParserInfo] -> String
-showParserGraph ps = printf "SIZE: %s \n" (show (length ps)) ++ intercalate "\n" (map showParserGraphSingle ps)
+showParserGraph ps = printf "SIZE: %s \n" (show (length ps)) <> intercalate "\n" (map showParserGraphSingle ps)
   where
     showParserGraphSingle :: ParserInfo -> String
     showParserGraphSingle (ParserInfo uid pid ptype n children) =
@@ -540,27 +544,27 @@ showFPBool FPUndecided = "Undecided"
 memoFun :: (Ord a) => (a -> b) -> a -> b
 memoFun f = unsafePerformIO $ do
   mapRef <- newIORef Map.empty
-  return $ \a -> unsafePerformIO $ do
+  pure $ \a -> unsafePerformIO $ do
     currMap <- readIORef mapRef
     let vM = Map.lookup a currMap
     case vM of
-      Just b -> return b
+      Just b -> pure b
       Nothing -> do
         let b = f a
         writeIORef mapRef $ Map.insert a b currMap
-        return b
+        pure b
 
 -- demos
 
 xsR :: () -> Parser String String
 xsR () = p
   where
-    p = eps "" <|> ter "x" <~> p ==> uncurry (++)
+    p = eps "" <|> ter "x" <~> p ==> uncurry (<>)
 
 xsL :: () -> Parser String String
 xsL () = p
   where
-    p = eps "" <|> p <~> ter "x" ==> uncurry (++)
+    p = eps "" <|> p <~> ter "x" ==> uncurry (<>)
 
 xsIn :: [Token String]
 xsIn = replicate 60 (Token "x" "x")
@@ -568,15 +572,15 @@ xsIn = replicate 60 (Token "x" "x")
 parens :: () -> Parser String String
 parens () = p
   where
-    p = eps "" <|> ter "(" <~> p <~> ter ")" ==> (\(s1, (s2, s3)) -> s1 ++ s2 ++ s3)
+    p = eps "" <|> ter "(" <~> p <~> ter ")" ==> (\(s1, (s2, s3)) -> s1 <> s2 <> s3)
 
 parensIn :: [Token String]
-parensIn = replicate 80 (Token "(" "(") ++ replicate 80 (Token ")" ")")
+parensIn = replicate 80 (Token "(" "(") <> replicate 80 (Token ")" ")")
 
 amb :: () -> Parser String String
 amb () = p
   where
-    p = ter "1" <|> p <~> ter "+" <~> p ==> (\(s1, (s2, s3)) -> "(" ++ s1 ++ s2 ++ s3 ++ ")")
+    p = ter "1" <|> p <~> ter "+" <~> p ==> (\(s1, (s2, s3)) -> "(" <> s1 <> s2 <> s3 <> ")")
 
 ambIn :: [Token String]
 ambIn = intersperse (Token "+" "+") (replicate 7 (Token "1" "1"))
@@ -584,19 +588,19 @@ ambIn = intersperse (Token "+" "+") (replicate 7 (Token "1" "1"))
 sexp :: () -> Parser String String
 sexp () = p
   where
-    p = ter "(" <~> pl <~> ter ")" ==> (\(s1, (s2, s3)) -> s1 ++ s2 ++ s3) <|> ter "s"
-    pl = pl <~> p ==> uncurry (++) <|> eps ""
+    p = ter "(" <~> pl <~> ter ")" ==> (\(s1, (s2, s3)) -> s1 <> s2 <> s3) <|> ter "s"
+    pl = pl <~> p ==> uncurry (<>) <|> eps ""
 
 sexpIn :: [Token String]
 sexpIn = map (\x -> Token x x) $ words "( s ( s ( s s ( s s s ( s s s ( s ) ( s s ) s s ) s s ) s ) s ) )"
 
 -- makeSExpIn :: Int -> [Token String]
--- makeSExpIn n = map (\x -> Token x x) . words $ "( " ++ build n "s" ++ " )"
+-- makeSExpIn n = map (\x -> Token x x) . words $ "( " <> build n "s" <> " )"
 --   where
 --     build 0 x = x
 --     build n s = build (n - 1) s'
 --       where
---         s' = "s ( " ++ s ++ " )"
+--         s' = "s ( " <> s <> " )"
 
 someStuff :: [Token String]
 someStuff = map (\x -> Token x x) $ words "x x x x y y y x x"
@@ -604,7 +608,7 @@ someStuff = map (\x -> Token x x) $ words "x x x x y y y x x"
 someStuffG :: () -> Parser String String
 someStuffG () = p
   where
-    p = eps "" <|> p <~> ter "x" ==> uncurry (++)
+    p = eps "" <|> p <~> ter "x" ==> uncurry (<>)
 
 -- nilsE :: () -> Parser String ()
 -- nilsE () = expr
@@ -653,7 +657,7 @@ someStuffG () = p
 
 -- reportSizesN :: Int -> Parser t a -> [Token t] -> String
 -- reportSizesN _ _ [] = ""
--- reportSizesN n p (i:is) = printf "%3s :: %s\n" (show n) (show size) ++ reportSizesN (n + 1) p' is
+-- reportSizesN n p (i:is) = printf "%3s :: %s\n" (show n) (show size) <> reportSizesN (n + 1) p' is
 --   where
 --     p' = deriveStep p i
 --     size = parserSize p'

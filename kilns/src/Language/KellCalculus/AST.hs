@@ -46,7 +46,7 @@ class ProtoTerm t where
 class (NQTerm t, ProtoTerm t) => Term t where
   freeVariables :: t -> Set Variable
 
-data Name = Name String deriving (Eq, Ord, Show)
+newtype Name = Name String deriving (Eq, Ord, Show)
 
 instance NQTerm Name where
   freeNames a = Set.singleton a
@@ -57,7 +57,7 @@ instance ProtoTerm Name where
 instance Term Name where
   freeVariables _ = (∅)
 
-data Variable = Variable String deriving (Eq, Ord, Show)
+newtype Variable = Variable String deriving (Eq, Ord, Show)
 
 instance ProtoTerm Variable where
   (Variable a) ≣ (Variable b) = a == b
@@ -277,22 +277,18 @@ match ξr m =
       ms = MultiSet.elems m
       js = [0, 1 .. List.length ξrs - 1]
    in Set.fromList
-        ( Maybe.catMaybes
-            ( map
-                ( \σ ->
-                    combine
-                      <$> sequence
-                        ( map
-                            ( \j ->
-                                matchM
-                                  (ξrs !! j)
-                                  (ms !! (σ !! j))
-                            )
-                            js
-                        )
-                )
-                (List.permutations js)
+        ( mapMaybe
+            ( \σ ->
+                combine
+                  <$> traverse
+                    ( \j ->
+                        matchM
+                          (ξrs !! j)
+                          (ms !! (σ !! j))
+                    )
+                    js
             )
+            (List.permutations js)
         )
 
 -- ensure `toSet (sk ξ) ⊆ freeNames ξ`
@@ -306,9 +302,7 @@ substitute :: (Pattern ξ) => Process ξ -> Substitution ξ -> Process ξ
 substitute p θ@(Substitution nm vm) =
   case p of
     NullProcess -> NullProcess
-    ProcessVariable x -> case Map.lookup x vm of
-      Just q -> q
-      Nothing -> p
+    ProcessVariable x -> Maybe.fromMaybe p $ Map.lookup x vm
     Trigger ξ q ->
       Trigger
         ξ
@@ -326,12 +320,10 @@ substitute p θ@(Substitution nm vm) =
       ParallelComposition (substitute q θ) (substitute r θ)
     Kell a q r -> Kell (substName a) (substitute q θ) (substitute r θ)
   where
-    substName a = case Map.lookup a nm of
-      Just b -> b
-      Nothing -> a
+    substName a = Maybe.fromMaybe a $ Map.lookup a nm
     removeFromMap m a = Data.Foldable.foldr Map.delete m a
 
 -- this allows us to configure how we select a substitution from the set of
 -- possibilities
-chooseSubstitution :: (Pattern ξ) => Set (Substitution ξ) -> (Substitution ξ)
+chooseSubstitution :: (Pattern ξ) => Set (Substitution ξ) -> Substitution ξ
 chooseSubstitution = Set.findMin

@@ -116,7 +116,7 @@ data PnpJKPattern
   deriving (Eq, Ord, Show)
 
 instance MultiSettable PnpJKPattern where
-  toMultiSet m@(J (JMessage _ _ _)) = MultiSet.singleton m
+  toMultiSet m@(J JMessage {}) = MultiSet.singleton m
   toMultiSet (J (JParallelComposition ξ1 ξ2)) =
     toMultiSet (J ξ1) ∪ toMultiSet (J ξ2)
   toMultiSet k@(JKKellMessage _) = MultiSet.singleton k
@@ -129,7 +129,7 @@ instance SubPattern P' where
   matchR (P'P p) q = matchR p q
   matchR (P'Message a p') (Message b p NullProcess) =
     combine
-      <$> sequence
+      <$> sequenceA
         [ Just (Substitution (Map.singleton a b) Map.empty),
           matchR p' p
         ]
@@ -144,7 +144,7 @@ toPattern p = J (toJ p)
 instance SubPattern P where
   -- would be nice to not throw away other matches at this level
   matchR p q =
-    let subst = (match (toPattern p) (toAnnotatedMessages q))
+    let subst = match (toPattern p) (toAnnotatedMessages q)
      in if Set.null subst
           then Nothing
           else Just (chooseSubstitution subst)

@@ -52,9 +52,7 @@ subReduce = (↝)
 
 -- | `subReduce` repeatedly until the `Process` is in normal form.
 (/↝) :: (Pattern ξ) => Process ξ -> Process ξ
-(/↝) p = case (p ↝) of
-  Just p' -> (p' /↝)
-  Nothing -> p
+(/↝) p = maybe p (/↝) (p ↝)
 
 -- FIXME: Use this when the related bug is fixed:
 --        http://ghc.haskell.org/trac/ghc/ticket/7650
@@ -69,7 +67,7 @@ subReduce = (↝)
   (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 δ s =
   foldMap
-    ( \j -> case j of
+    ( \case
         Message a p q ->
           ( MultiSet.singleton (LocalMessage a p),
             MultiSet.singleton q
@@ -87,7 +85,7 @@ subReduce = (↝)
   (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 υ s =
   foldMap
-    ( \j -> case j of
+    ( \case
         Kell a p q ->
           ( MultiSet.singleton (KellMessage a p),
             MultiSet.singleton q
@@ -106,7 +104,7 @@ subReduce = (↝)
   (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 ψ s =
   foldMap
-    ( \j -> case j of
+    ( \case
         Kell a p q ->
           let (md, v) = δ (toMultiSet p)
            in ( MultiSet.map (\(LocalMessage b r) -> DownMessage b r a) md,
@@ -128,8 +126,8 @@ partitionProcesses ::
   (Pattern ξ) =>
   Process ξ ->
   (MultiSet (Process ξ), MultiSet (Process ξ), MultiSet (Process ξ))
-partitionProcesses p@(Message _ _ _) = (MultiSet.singleton p, (∅), (∅))
-partitionProcesses p@(Kell _ _ _) =
+partitionProcesses p@Message {} = (MultiSet.singleton p, (∅), (∅))
+partitionProcesses p@Kell {} =
   ((∅), MultiSet.singleton p, MultiSet.singleton p)
 partitionProcesses (ParallelComposition p q) =
   (\(p1, p2, p3) (q1, q2, q3) -> (p1 ∪ q1, p2 ∪ q2, p3 ∪ q3))
@@ -165,7 +163,7 @@ reduce
         (mk, v2) = υ (MultiSet.map (/↝) u2)
         (md, v3) = ψ u3
         (m, v4) = δ (toMultiSet u4)
-        θ = match ξ (mm ∪ md ∪ mk ∪ (MultiSet.map (\(LocalMessage a q) -> UpMessage a q b) m))
+        θ = match ξ (mm ∪ md ∪ mk ∪ MultiSet.map (\(LocalMessage a q) -> UpMessage a q b) m)
      in if Set.null θ
           then Nothing
           else

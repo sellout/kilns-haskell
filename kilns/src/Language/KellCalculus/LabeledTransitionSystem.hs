@@ -31,7 +31,7 @@ instance (Pattern ξ) => NQTerm (Concretion ξ) where
         (∪)
         (∅)
         ( MultiSet.map
-            ( \am -> case am of
+            ( \case
                 LocalMessage b q -> freeNames b ∪ freeNames q
                 UpMessage b q c -> freeNames b ∪ freeNames q ∪ freeNames c
                 DownMessage b q c -> freeNames b ∪ freeNames q ∪ freeNames c
@@ -48,20 +48,19 @@ instance (Pattern ξ) => ProtoTerm (Concretion ξ) where
 
 instance (Pattern ξ) => Term (Concretion ξ) where
   freeVariables (Concretion _ ω p) =
-    ( Data.Foldable.foldr
-        (∪)
-        (∅)
-        ( MultiSet.map
-            ( \am -> case am of
-                LocalMessage _ q -> freeVariables q
-                UpMessage _ q _ -> freeVariables q
-                DownMessage _ q _ -> freeVariables q
-                KellMessage _ q -> freeVariables q
-            )
-            ω
-        )
-        ∪ freeVariables p
-    )
+    Data.Foldable.foldr
+      (∪)
+      (∅)
+      ( MultiSet.map
+          ( \case
+              LocalMessage _ q -> freeVariables q
+              UpMessage _ q _ -> freeVariables q
+              DownMessage _ q _ -> freeVariables q
+              KellMessage _ q -> freeVariables q
+          )
+          ω
+      )
+      ∪ freeVariables p
 
 data SimpleAbstraction ξ
   = PatternAbstraction ξ (Process ξ)
@@ -164,10 +163,11 @@ compose (ConcretionA (Concretion a ω p)) (ProcessA q) =
     then Just (ConcretionA (Concretion a ω (ParallelComposition p q)))
     else Nothing
 compose (ConcretionA (Concretion a ω p)) (ConcretionA (Concretion c ω' p')) =
-  if a ∩ (foldMap freeNames ω' ∪ freeNames p')
+  if a
+    ∩ (foldMap freeNames ω' ∪ freeNames p')
     == (∅)
-      ∧ c
-      ∩ (foldMap freeNames ω ∪ freeNames p)
+    ∧ c
+    ∩ (foldMap freeNames ω ∪ freeNames p)
     == (∅)
     then Just (ConcretionA (Concretion (a ∪ c) (ω ∪ ω') (ParallelComposition p p')))
     else Nothing
@@ -176,7 +176,7 @@ compose _ _ = Nothing
 -- pseudo-application
 papp :: (Pattern ξ) => Abstraction ξ -> Concretion ξ -> Maybe (Process ξ)
 papp (ApplicationAbstraction f c) c' =
-  papp f =<< concretionFrom <$> (compose (ConcretionA c) (ConcretionA c'))
+  papp f . concretionFrom =<< compose (ConcretionA c) (ConcretionA c')
 papp (SimpleAbstraction (PatternAbstraction ξ r)) (Concretion a ω p) =
   if Set.null a
     then
@@ -239,7 +239,7 @@ commit (Restriction a p) α =
       Nothing -> Nothing
     else Nothing
 -- T.Kell.C, .F, .P
-commit k@(Kell _ _ _) α =
+commit k@Kell {} α =
   case (k /↝) of
     Kell a p r -> case commit p α of
       Just (ConcretionA (Concretion b mm q)) ->
@@ -268,27 +268,21 @@ commit par@(ParallelComposition _ _) (Composition α β) =
     ParallelComposition p q ->
       case α of
         Complete -> Nothing
-        _ -> case sequence [commit p α, commit q β] of
-          Just x -> Data.Foldable.foldrM compose (ProcessA NullProcess) x
-          Nothing -> Nothing
+        _ ->
+          foldrM compose (ProcessA NullProcess)
+            =<< sequenceA [commit p α, commit q β]
 -- T.Par.L, .R
 commit par@(ParallelComposition _ _) α =
   case (par /↝) of
     ParallelComposition p q ->
       case α of
         Complete -> Nothing
-        _ -> case commit p α of
-          Just a -> compose a (ProcessA q)
-          Nothing -> case commit p α of
-            Just a -> compose a (ProcessA q)
-            Nothing -> Nothing
+        _ -> (`compose` ProcessA q) =<< commit p α
 -- T.Par.CC
 
 -- T.Red
 commit p Silent = commit p Complete
 -- T.SR
-commit p α = case (p ↝) of
-  Just q -> commit q α
-  Nothing -> Nothing
+commit p α = (`commit` α) =<< (p ↝)
 
 -- T.α

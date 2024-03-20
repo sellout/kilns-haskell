@@ -20,15 +20,16 @@ parse :: String -> Set (Process FraKtal)
 parse s =
   runParse
     (process grammar)
-    (map (\x -> Token x [x]) ("(par " ++ s ++ "\n)"))
+    (map (\x -> Token x [x]) ("(par " <> s <> "\n)"))
 
 reduceFully :: (Pattern ξ) => Process ξ -> Process ξ
-reduceFully p = case reduce p of
-  Just p' -> reduceFully p'
-  Nothing -> p
+reduceFully p = maybe p reduceFully $ reduce p
 
 main :: IO ()
 main =
   getArgs
-    >>= readFile . flip (!!) 0
-    >>= print . Set.map (syntax . reduceFully) . parse
+    >>= readFile
+    . flip (!!) 0
+    >>= print
+    . Set.map (syntax . reduceFully)
+    . parse

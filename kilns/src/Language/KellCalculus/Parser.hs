@@ -78,7 +78,7 @@ starw :: (Ord a) => Parser Char a -> Parser Char [a]
 starw p = star (whitespace <~> p) ==> map snd
 
 star1w :: (Ord a) => Parser Char a -> Parser Char [a]
-star1w p = p <~> star (whitespace <~> p) ==> (\(a, b) -> a : (map snd b))
+star1w p = p <~> star (whitespace <~> p) ==> (\(a, b) -> a : map snd b)
 
 startKellTok :: Parser Char String
 startKellTok = ter '['
@@ -120,7 +120,7 @@ identifier :: Parser Char String
 identifier =
   terM (Set.fromList (CharSet.toList Unicode.letter))
     <~> star (terM (Set.fromList (CharSet.toList Unicode.letter)))
-    ==> (\(h, (rest)) -> concat (h : rest))
+    ==> (\(h, rest) -> concat (h : rest))
 
 -- (complement [startKellTok, endKellTok,
 --              startMessageTok, endMessageTok,
@@ -175,15 +175,7 @@ kell ξ =
     >~< process ξ
     <~> optionw (process ξ)
     <~> endKellTok
-    ==> ( \(_, (a, (q, (p, _)))) ->
-            Kell
-              a
-              q
-              ( case p of
-                  Just r -> r
-                  Nothing -> NullProcess
-              )
-        )
+    ==> (\(_, (a, (q, (p, _)))) -> Kell a q (fromMaybe NullProcess p))
 
 message :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 message ξ =
@@ -191,11 +183,11 @@ message ξ =
     |~| name
     <~> optionw (process ξ <~> optionw (process ξ))
     <~> endMessageTok
-    ==> ( \(_, (a, (p, _))) -> case p of
-            Just q -> case snd q of
-              Just r -> Message a (fst q) r
-              Nothing -> Message a (fst q) NullProcess
-            Nothing -> Message a NullProcess NullProcess
+    ==> ( \(_, (a, (p, _))) ->
+            maybe
+              (Message a NullProcess NullProcess)
+              (\q -> Message a (fst q) . fromMaybe NullProcess $ snd q)
+              p
         )
 
 trigger :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
@@ -249,22 +241,22 @@ instance (Pattern ξ, Show (SexpSyntax ξ)) => Show (SexpSyntax (Process ξ)) wh
       ProcessVariable var -> show (SexpSyntax var)
       Trigger ξ p ->
         "(trigger "
-          ++ show (SexpSyntax ξ)
-          ++ " "
-          ++ show (SexpSyntax p)
-          ++ ")"
+          <> show (SexpSyntax ξ)
+          <> " "
+          <> show (SexpSyntax p)
+          <> ")"
       Restriction a p ->
         "(new ("
-          ++ List.intercalate " " (map (show . SexpSyntax) (Set.toList a))
-          ++ ") "
-          ++ show (SexpSyntax p)
-          ++ ")"
-      Message a NullProcess NullProcess -> "{" ++ show (SexpSyntax a) ++ "}"
-      Message a p NullProcess -> "{" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "}"
+          <> List.unwords (map (show . SexpSyntax) (Set.toList a))
+          <> ") "
+          <> show (SexpSyntax p)
+          <> ")"
+      Message a NullProcess NullProcess -> "{" <> show (SexpSyntax a) <> "}"
+      Message a p NullProcess -> "{" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "}"
       Message a p q ->
-        "(cont {" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "} " ++ show (SexpSyntax q) ++ ")"
-      ParallelComposition p q -> "(par " ++ show (SexpSyntax p) ++ " " ++ show (SexpSyntax q) ++ ")"
-      Kell a NullProcess NullProcess -> "[" ++ show (SexpSyntax a) ++ "]"
-      Kell a p NullProcess -> "[" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "]"
+        "(cont {" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "} " <> show (SexpSyntax q) <> ")"
+      ParallelComposition p q -> "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
+      Kell a NullProcess NullProcess -> "[" <> show (SexpSyntax a) <> "]"
+      Kell a p NullProcess -> "[" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "]"
       Kell a p q ->
-        "(cont [" ++ show (SexpSyntax a) ++ " " ++ show (SexpSyntax p) ++ "] " ++ show (SexpSyntax q) ++ ")"
+        "(cont [" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "] " <> show (SexpSyntax q) <> ")"
