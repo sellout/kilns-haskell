@@ -50,6 +50,7 @@ when False _ = Nothing
 subReduce :: (Pattern ξ) => Process ξ -> Maybe (Process ξ)
 subReduce = (↝)
 
+-- | `subReduce` repeatedly until the `Process` is in normal form.
 (/↝) :: (Pattern ξ) => Process ξ -> Process ξ
 (/↝) p = case (p ↝) of
   Just p' -> (p' /↝)
@@ -59,7 +60,13 @@ subReduce = (↝)
 --        http://ghc.haskell.org/trac/ghc/ticket/7650
 -- (↝̷) = (/↝)
 
-δ :: (Pattern ξ) => MultiSet (Process ξ) -> (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
+-- | “a function that, given a set U of local messages, extracts a multiset Mm
+--    of local messages to match, and a residual V . Residuals are continuation
+--    processes that appear after a reduction step.” —§3.2, Reduction
+δ ::
+  (Pattern ξ) =>
+  MultiSet (Process ξ) ->
+  (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 δ s =
   foldMap
     ( \j -> case j of
@@ -71,7 +78,13 @@ subReduce = (↝)
     )
     s
 
-υ :: (Pattern ξ) => MultiSet (Process ξ) -> (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
+-- | “a function that, given a set U of kells, extracts a multiset Mk of kell
+--    messages to match, and a residual V . Residuals are continuation processes
+--    that appear after a reduction step.” —§3.2, Reduction
+υ ::
+  (Pattern ξ) =>
+  MultiSet (Process ξ) ->
+  (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 υ s =
   foldMap
     ( \j -> case j of
@@ -83,7 +96,14 @@ subReduce = (↝)
     )
     s
 
-ψ :: (Pattern ξ) => MultiSet (Process ξ) -> (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
+-- | “a function that, given a set U of messages in sub-kells, extracts a
+--    multiset Md of down messages to match, and a residual V . Residuals are
+--    continuation processes that appear after a reduction step.” —§3.2,
+--    Reduction
+ψ ::
+  (Pattern ξ) =>
+  MultiSet (Process ξ) ->
+  (MultiSet (AnnotatedMessage ξ), MultiSet (Process ξ))
 ψ s =
   foldMap
     ( \j -> case j of
