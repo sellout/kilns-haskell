@@ -171,6 +171,14 @@
         overlays = [self.overlays.default];
       };
     in {
+      apps = {
+        default = self.apps.${system}.kilns;
+        kilns = {
+          type = "app";
+          program = "${self.packages.${system}.default}/bin/kilns";
+        };
+      };
+
       packages =
         {default = self.packages.${system}."${self.lib.defaultCompiler}_all";}
         // concat.lib.mkPackages
