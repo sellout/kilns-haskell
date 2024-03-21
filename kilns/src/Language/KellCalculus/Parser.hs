@@ -2,6 +2,7 @@
 
 module Language.KellCalculus.Parser
   ( process,
+    processes,
     name,
     variable,
     identifier,
@@ -227,10 +228,15 @@ restriction ξ =
   startFormTok |~| restrictionTok >~< name >~< process ξ <~> endFormTok
     ==> (\(_, (_, (a, (p, _)))) -> Restriction (Set.singleton a) p)
 
+-- | Used by `parallelComposition`, but also when parsing files, which have an
+--   implicit parallel composition.
+processes :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
+processes ξ = star1w (process ξ) ==> fold1
+
 parallelComposition :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 parallelComposition ξ =
-  startFormTok |~| parTok >~< star1w (process ξ) <~> endFormTok
-    ==> (\(_, (_, (p, _))) -> fold1 p)
+  startFormTok |~| parTok >~< processes ξ <~> endFormTok
+    ==> (\(_, (_, (p, _))) -> p)
 
 process :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 process ξ =
