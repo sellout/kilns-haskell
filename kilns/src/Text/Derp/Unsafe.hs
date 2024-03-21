@@ -113,6 +113,9 @@ import safe Text.Show (Show (show))
 import Unsafe.Coerce (unsafeCoerce)
 import safe Prelude (Integer, Num ((+)), error, fromIntegral, seq)
 
+-- $setup
+-- >>> import Text.Read (read)
+
 type Context t a b = ContextR Parser t a b
 
 -- | The input type for parsing.  For example the parser:
@@ -303,21 +306,36 @@ runParseNum n p (i : is) = runParseNum n (deriveStepNum n p i) is
 -- | Parse using the default number of intermediate compactions.  This is the
 --   main parsing function.  Examples:
 --
--- > let e =     ter "num"
--- >         <|> e <~> ter "+" <~> e ==> (\(x1,(o,x2)) -> "(" <> x1 <> o <> x2 <> ")")
--- > in runParse e [Token "num" "1", Token "+" "+", Token "num" 3", Token "+" "+", Token "num" "5"]
+-- >>> :{
+--   let e =
+--         ter "num"
+--           <|> e <~> ter "+" <~> e
+--             ==> (\(x1, (o, x2)) -> "(" <> x1 <> o <> x2 <> ")")
+--    in runParse
+--         e
+--         [ Token "num" "1",
+--           Token "+" "+",
+--           Token "num" "3",
+--           Token "+" "+",
+--           Token "num" "5"
+--         ]
+-- :}
+-- fromList ["((1+3)+5)","(1+(3+5))"]
 --
--- evaluates to:
---
--- > Set.fromList ["((1+3)+5)", "(1+(3+5))"]
---
--- > let e =     ter "num" ==> read
--- >         <|> e <~> ter "+" <~> e ==> (\(x1,(_,x2)) -> x1 + x2)
--- > in runParse e [Token "num" "1", Token "+" "+", Token "num" 3", Token "+" "+", Token "num" "5"]
---
--- evaluates to:
---
--- > Set.fromList [9]
+-- >>> :{
+--   let e =
+--         ter "num" ==> read
+--           <|> e <~> ter "+" <~> e ==> (\(x1, (_, x2)) -> x1 + x2)
+--    in runParse
+--         e
+--         [ Token "num" "1",
+--           Token "+" "+",
+--           Token "num" "3",
+--           Token "+" "+",
+--           Token "num" "5"
+--         ]
+-- :}
+-- fromList [9]
 runParse :: (Ord t, Ord a) => Parser t a -> [Token t] -> Set a
 runParse = runParseNum defaultCompactSteps
 
