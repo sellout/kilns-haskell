@@ -91,10 +91,13 @@ in {
             sys:
               [
                 "checks.${sys}.*"
-                "devShells.${sys}.*"
+                "devShells.${sys}.default"
                 "packages.${sys}.default"
               ]
-              ++ map (ghc: "packages.${sys}.${ghc}_all")
+              ++ lib.concatMap (ghc: [
+                "devShells.${sys}.${ghc}"
+                "packages.${sys}.${ghc}_all"
+              ])
               (self.lib.testedGhcVersions sys)
           )
         )

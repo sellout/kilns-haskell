@@ -113,11 +113,6 @@
         testedGhcVersions = system:
           [
             self.lib.defaultCompiler
-            "ghc8107"
-            "ghc902"
-            "ghc924"
-            "ghc942"
-            "ghc962"
             "ghc981"
             # "ghcHEAD" # doctest doesn’t work on current HEAD
           ]
@@ -146,15 +141,20 @@
         supportedGhcVersions = system:
           self.lib.testedGhcVersions system
           ++ [
+            "ghc8107"
+            "ghc902"
+            "ghc924"
             "ghc925"
             "ghc926"
             "ghc927"
             "ghc928"
+            "ghc942"
             "ghc943"
             "ghc944"
             "ghc945"
             "ghc946"
             "ghc947"
+            "ghc962"
             "ghc963"
           ];
       };
