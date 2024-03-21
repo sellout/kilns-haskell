@@ -1,5 +1,7 @@
-{-# LANGUAGE PostfixOperators #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Safe #-}
+-- __FIXME__: All matches should be exhaustive. Probably need to extract some
+--            records from existing sum types.
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Language.KellCalculus.ReductionSemantics
   ( (↝),
@@ -12,12 +14,31 @@ module Language.KellCalculus.ReductionSemantics
   )
 where
 
-import Data.Foldable
+import Data.Bool (Bool (False, True))
+import Data.Foldable (foldMap, foldr)
+import Data.Maybe (Maybe (Just, Nothing), maybe)
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
 import qualified Data.Set as Set
-import Language.Common.SetLike
+import Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∩), (∪)))
 import Language.KellCalculus.AST
+  ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
+    NQTerm (freeNames),
+    Pattern,
+    Process
+      ( Kell,
+        Message,
+        NullProcess,
+        ParallelComposition,
+        Restriction,
+        Trigger
+      ),
+    chooseSubstitution,
+    composeProcesses,
+    match,
+    substitute,
+    traverseEC,
+  )
 
 when :: Bool -> a -> Maybe a
 when True x = Just x
@@ -108,7 +129,7 @@ subReduce = (↝)
         Kell a p q ->
           let (md, v) = δ (toMultiSet p)
            in ( MultiSet.map (\(LocalMessage b r) -> DownMessage b r a) md,
-                MultiSet.singleton (Kell a (Data.Foldable.foldr composeProcesses NullProcess v) q)
+                MultiSet.singleton (Kell a (foldr composeProcesses NullProcess v) q)
               )
         _ -> ((∅), (∅))
     )
@@ -147,7 +168,7 @@ reduce (ParallelComposition (Trigger ξ p) u) =
         then Nothing
         else
           Just
-            ( Data.Foldable.foldr
+            ( foldr
                 composeProcesses
                 (substitute p (chooseSubstitution θ))
                 (v1 ∪ v2 ∪ v3)
@@ -168,11 +189,11 @@ reduce
           then Nothing
           else
             Just
-              ( Data.Foldable.foldr
+              ( foldr
                   composeProcesses
                   ( Kell
                       b
-                      ( Data.Foldable.foldr
+                      ( foldr
                           composeProcesses
                           (substitute p (chooseSubstitution θ))
                           (v1 ∪ v2 ∪ v3)

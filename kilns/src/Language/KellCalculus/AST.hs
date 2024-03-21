@@ -1,5 +1,4 @@
-{-# LANGUAGE PostfixOperators #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Safe #-}
 
 module Language.KellCalculus.AST
   ( Process (..),
@@ -24,17 +23,32 @@ module Language.KellCalculus.AST
   )
 where
 
-import Data.Foldable
+import Data.Bool (Bool (False, True))
+import Data.Char (Char)
+import Data.Eq (Eq ((==)))
+import Data.Foldable (Foldable (foldr))
+import Data.Function (($))
+import Data.Functor ((<$>))
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (Maybe (Just, Nothing), mapMaybe)
 import qualified Data.Maybe as Maybe
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
+import Data.Ord (Ord)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.String (String)
+import Data.Traversable (Traversable (traverse))
 import Language.Common.SetLike
+  ( MultiSettable (toMultiSet),
+    SetLike ((∅), (∖), (∩), (∪)),
+    (∧),
+  )
 import Text.Derp (Parser)
+import Text.Show (Show)
+import Prelude (Num ((-)), error)
 
 class (Ord t) => NQTerm t where
   freeNames :: t -> Set Name
@@ -46,7 +60,7 @@ class ProtoTerm t where
 class (NQTerm t, ProtoTerm t) => Term t where
   freeVariables :: t -> Set Variable
 
-newtype Name = Name String deriving (Eq, Ord, Show)
+newtype Name = Name String deriving stock (Eq, Ord, Show)
 
 instance NQTerm Name where
   freeNames a = Set.singleton a
@@ -57,7 +71,7 @@ instance ProtoTerm Name where
 instance Term Name where
   freeVariables _ = (∅)
 
-newtype Variable = Variable String deriving (Eq, Ord, Show)
+newtype Variable = Variable String deriving stock (Eq, Ord, Show)
 
 instance ProtoTerm Variable where
   (Variable a) ≣ (Variable b) = a == b
@@ -70,7 +84,7 @@ data Process ξ
   | Message Name (Process ξ) (Process ξ)
   | ParallelComposition (Process ξ) (Process ξ)
   | Kell Name (Process ξ) (Process ξ)
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance (Pattern ξ) => NQTerm (Process ξ) where
   freeNames NullProcess = (∅)
@@ -139,7 +153,7 @@ data AnnotatedMessage ξ
   | UpMessage Name (Process ξ) Name
   | DownMessage Name (Process ξ) Name
   | KellMessage Name (Process ξ)
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 instance (Pattern ξ) => NQTerm (AnnotatedMessage ξ) where
   freeNames (LocalMessage a p) = freeNames a ∪ freeNames p
@@ -244,7 +258,7 @@ traverseEC f p = f p
 --                       (Leaf p : subExtractTerms p)]
 
 data Substitution ξ = Substitution (Map Name Name) (Map Variable (Process ξ))
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 class (MultiSettable ξ, NQTerm ξ, ProtoTerm ξ, Show ξ) => Pattern ξ where
   matchM :: ξ -> AnnotatedMessage ξ -> Maybe (Substitution ξ)
@@ -281,11 +295,7 @@ match ξr m =
             ( \σ ->
                 combine
                   <$> traverse
-                    ( \j ->
-                        matchM
-                          (ξrs !! j)
-                          (ms !! (σ !! j))
-                    )
+                    (\j -> matchM (ξrs List.!! j) (ms List.!! (σ List.!! j)))
                     js
             )
             (List.permutations js)
@@ -321,9 +331,9 @@ substitute p θ@(Substitution nm vm) =
     Kell a q r -> Kell (substName a) (substitute q θ) (substitute r θ)
   where
     substName a = Maybe.fromMaybe a $ Map.lookup a nm
-    removeFromMap m a = Data.Foldable.foldr Map.delete m a
+    removeFromMap m a = foldr Map.delete m a
 
 -- this allows us to configure how we select a substitution from the set of
 -- possibilities
-chooseSubstitution :: (Pattern ξ) => Set (Substitution ξ) -> Substitution ξ
+chooseSubstitution :: Set (Substitution ξ) -> Substitution ξ
 chooseSubstitution = Set.findMin

@@ -1,21 +1,64 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Unsafe #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.KellCalculus.FraKtal (FraKtal (..)) where
 
-import qualified Data.Map as Map
-import qualified Data.MultiSet as MultiSet
-import qualified Data.Set as Set
-import Language.Common.SetLike
-import Language.KellCalculus.AST
+import safe Control.Category (Category ((.)))
+import safe Data.Bool (Bool (False, True))
+import safe Data.Char (Char)
+import safe Data.Eq (Eq ((/=), (==)))
+import safe Data.Foldable (Foldable (foldr1))
+import safe Data.Function (const)
+import safe Data.Functor ((<$>))
+import safe qualified Data.Map as Map
+import safe Data.Maybe (Maybe (Just, Nothing))
+import safe qualified Data.MultiSet as MultiSet
+import safe Data.Ord (Ord)
+import safe Data.Semigroup (Semigroup ((<>)))
+import safe qualified Data.Set as Set
+import safe Data.Traversable (Traversable (sequenceA))
+import safe Data.Tuple (snd)
+import safe Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∪)), (∧))
+import safe Language.KellCalculus.AST
+  ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
+    NQTerm (freeNames),
+    Name,
+    Pattern (boundNames, boundVariables, grammar, matchM, sk),
+    Process (Message, NullProcess),
+    ProtoTerm ((≣)),
+    Substitution (Substitution),
+    Variable,
+    chooseSubstitution,
+    combine,
+    match,
+    toAnnotatedMessages,
+  )
 import Language.KellCalculus.Parser
-import Text.Derp
+  ( SexpSyntax (SexpSyntax),
+    bindingTok,
+    endFormTok,
+    endKellTok,
+    endMessageTok,
+    name,
+    parTok,
+    startFormTok,
+    startKellTok,
+    startMessageTok,
+    starw,
+    variable,
+    (>~<),
+    (|~|),
+  )
+import safe Text.Derp (Parser)
+import Text.Derp.Unsafe (ter, terS, (<|>), (<~>), (==>))
+import safe Text.Show (Show (show))
+import safe Prelude (error)
 
 class SubPattern ξ where
   matchR :: ξ -> Process FraKtal -> Maybe (Substitution FraKtal)
 
 data MessageTag = Local | Up | Down
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
 messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
@@ -27,7 +70,7 @@ data P'
   | P'Complement Name P'
   | P'BoundComplement Name Name P'
   | Blank
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance ProtoTerm P' where
   P'Variable _ ≣ P'Variable _ = True
@@ -86,7 +129,7 @@ p' =
 data P
   = PMessage Name P'
   | PParallelComposition P P
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax P) where
   show (SexpSyntax ξ) =
@@ -112,7 +155,7 @@ p =
 data J
   = JMessage MessageTag Name P'
   | JParallelComposition J J
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax J) where
   show (SexpSyntax ξ) =
@@ -150,7 +193,7 @@ j =
         )
 
 data KellMessage = JKellMessage Name Variable
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax KellMessage) where
   show (SexpSyntax (JKellMessage n v)) =
@@ -168,7 +211,7 @@ data FraKtal
   = J J
   | JKKellMessage KellMessage
   | JKParallelComposition J KellMessage
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax FraKtal) where
   show (SexpSyntax ξ) =

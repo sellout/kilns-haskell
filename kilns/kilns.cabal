@@ -96,6 +96,8 @@ common defaults
     base ^>= {4.8.2, 4.9.0, 4.10.0, 4.11.0, 4.12.0, 4.13.0, 4.14.0, 4.15.0, 4.16.0, 4.17.0, 4.18.0, 4.19.0},
   ghc-options:
     -Weverything
+    -- This one just reports unfixable things, AFAICT.
+    -Wno-all-missed-specialisations
     -- If we didn’t allow inferred-safe imports, nothing would be `Safe`.
     -Wno-inferred-safe-imports
     -- Type inference good.
@@ -151,6 +153,10 @@ library
     charset == 0.3.*,
     base-unicode-symbols == 0.2.*,
   hs-source-dirs: src
+  ghc-options:
+    -trust charset
+    -trust containers
+    -trust unordered-containers
   exposed-modules:
     Language.KellCalculus.Parser
     Language.KellCalculus.AST
@@ -167,6 +173,7 @@ library
     -- Language.Kilns.Parser
     -- Language.Kilns.AST
     Text.Derp
+    Text.Derp.Unsafe
   other-modules:
     Language.Common.SetLike
 
@@ -194,8 +201,10 @@ test-suite doctests
 
 executable kilns
   import: defaults
-  main-is: src/Language/Kilns/Interpreter/Main.hs
   build-depends:
     base,
     containers,
     kilns,
+  ghc-options:
+    -trust containers
+  main-is: src/Language/Kilns/Interpreter/Main.hs

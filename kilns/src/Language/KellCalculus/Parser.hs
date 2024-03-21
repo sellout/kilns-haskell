@@ -1,6 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Unsafe #-}
 
 module Language.KellCalculus.Parser
   ( process,
@@ -24,14 +22,52 @@ module Language.KellCalculus.Parser
   )
 where
 
-import qualified Data.CharSet as CharSet
-import qualified Data.CharSet.Unicode.Category as Unicode
-import qualified Data.List as List
-import Data.Maybe
-import qualified Data.Set as Set
-import Language.Common.SetLike
-import Language.KellCalculus.AST
-import Text.Derp
+import safe Control.Category (Category ((.)))
+import safe Data.Char (Char)
+import safe qualified Data.CharSet as CharSet
+import safe qualified Data.CharSet.Unicode.Category as Unicode
+import safe Data.Eq (Eq ((==)))
+import safe Data.Foldable (Foldable (foldr))
+import safe Data.Function (const, ($))
+import safe Data.Functor (Functor (fmap), (<$>))
+import safe qualified Data.List as List
+import safe Data.Maybe (Maybe (Just, Nothing), catMaybes, fromMaybe, maybe)
+import safe Data.Monoid (Monoid (mconcat))
+import safe Data.Ord (Ord ((<=)))
+import safe Data.Semigroup (Semigroup ((<>)))
+import safe qualified Data.Set as Set
+import safe Data.String (String)
+import safe Data.Tuple (fst, snd)
+import Language.Common.SetLike (SetLike ((∪)))
+import safe Language.KellCalculus.AST
+  ( Name (Name),
+    Pattern,
+    Process
+      ( Kell,
+        Message,
+        NullProcess,
+        ParallelComposition,
+        ProcessVariable,
+        Restriction,
+        Trigger
+      ),
+    Variable (Variable),
+    composeProcesses,
+  )
+import safe Text.Derp (Parser)
+import Text.Derp.Unsafe
+  ( option,
+    star,
+    star1,
+    ter,
+    terM,
+    terS,
+    (<|>),
+    (<~>),
+    (==>),
+  )
+import safe Text.Show (Show (show))
+import safe Prelude (error)
 
 whitespaceChar :: Parser Char ()
 whitespaceChar = terM (Set.fromList (CharSet.toList Unicode.separator) ∪ Set.fromList ['\n']) ==> const ()
@@ -48,7 +84,7 @@ legalChar =
 
 -- Really want to keep this in the AST, but just toss it for now
 comment :: Parser Char String
-comment = star1 (ter ';') <~> star legalChar <~> ter '\n' ==> concat . fst . snd
+comment = star1 (ter ';') <~> star legalChar <~> ter '\n' ==> mconcat . fst . snd
 
 maybeComment :: Parser Char (Maybe String)
 maybeComment = whitespaceChar ==> const Nothing <|> comment ==> Just
@@ -75,10 +111,10 @@ optionw :: (Ord a) => Parser Char a -> Parser Char (Maybe a)
 optionw p = option (whitespace <~> p) ==> (<$>) snd
 
 starw :: (Ord a) => Parser Char a -> Parser Char [a]
-starw p = star (whitespace <~> p) ==> map snd
+starw p = star (whitespace <~> p) ==> fmap snd
 
 star1w :: (Ord a) => Parser Char a -> Parser Char [a]
-star1w p = p <~> star (whitespace <~> p) ==> (\(a, b) -> a : map snd b)
+star1w p = p <~> star (whitespace <~> p) ==> (\(a, b) -> a : fmap snd b)
 
 startKellTok :: Parser Char String
 startKellTok = ter '['
@@ -120,7 +156,7 @@ identifier :: Parser Char String
 identifier =
   terM (Set.fromList (CharSet.toList Unicode.letter))
     <~> star (terM (Set.fromList (CharSet.toList Unicode.letter)))
-    ==> (\(h, rest) -> concat (h : rest))
+    ==> (\(h, rest) -> mconcat (h : rest))
 
 -- (complement [startKellTok, endKellTok,
 --              startMessageTok, endMessageTok,
@@ -247,7 +283,7 @@ instance (Pattern ξ, Show (SexpSyntax ξ)) => Show (SexpSyntax (Process ξ)) wh
           <> ")"
       Restriction a p ->
         "(new ("
-          <> List.unwords (map (show . SexpSyntax) (Set.toList a))
+          <> List.unwords (fmap (show . SexpSyntax) (Set.toList a))
           <> ") "
           <> show (SexpSyntax p)
           <> ")"

@@ -1,35 +1,39 @@
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Unsafe #-}
 
 module Main (main) where
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Language.KellCalculus.AST
-import Language.KellCalculus.FraKtal
-import Language.KellCalculus.Parser
-import Language.KellCalculus.ReductionSemantics
-import System.Environment
-import Text.Derp
+import safe Control.Category ((.))
+import safe Control.Monad ((<=<), (=<<))
+import safe Data.Function (flip, ($))
+import safe Data.Functor ((<$>))
+import safe Data.List ((!!))
+import safe Data.Maybe (maybe)
+import safe Data.Semigroup ((<>))
+import safe Data.Set (Set)
+import safe qualified Data.Set as Set
+import safe Data.String (String)
+import safe Language.KellCalculus.AST (Pattern (grammar), Process)
+import Language.KellCalculus.FraKtal (FraKtal)
+import Language.KellCalculus.Parser (SexpSyntax (SexpSyntax), process)
+import safe Language.KellCalculus.ReductionSemantics (reduce)
+import safe System.Environment (getArgs)
+import safe System.IO (IO, print, readFile)
+import safe Text.Derp (Token (Token))
+import Text.Derp.Unsafe (runParse)
 
 -- syntax :: Show a => a -> a
 -- syntax = id
-syntax :: (Show a) => a -> SexpSyntax a
+syntax :: a -> SexpSyntax a
 syntax = SexpSyntax
 
 parse :: String -> Set (Process FraKtal)
 parse s =
-  runParse
-    (process grammar)
-    (map (\x -> Token x [x]) ("(par " <> s <> "\n)"))
+  runParse (process grammar) $ (\x -> Token x [x]) <$> "(par " <> s <> "\n)"
 
 reduceFully :: (Pattern ξ) => Process ξ -> Process ξ
 reduceFully p = maybe p reduceFully $ reduce p
 
 main :: IO ()
 main =
-  getArgs
-    >>= readFile
-    . flip (!!) 0
-    >>= print
-    . Set.map (syntax . reduceFully)
-    . parse
+  (print . Set.map (syntax . reduceFully) . parse <=< readFile . flip (!!) 0)
+    =<< getArgs

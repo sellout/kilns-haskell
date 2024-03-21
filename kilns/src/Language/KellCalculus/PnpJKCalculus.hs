@@ -1,20 +1,60 @@
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Unsafe #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.KellCalculus.PnpJKCalculus () where
 
-import qualified Data.Map as Map
-import qualified Data.MultiSet as MultiSet
-import qualified Data.Set as Set
-import Language.Common.SetLike
-import Language.KellCalculus.AST
+import safe Data.Bool (Bool (False, True))
+import safe Data.Char (Char)
+import safe Data.Eq (Eq ((==)))
+import safe Data.Foldable (Foldable (foldr1))
+import safe Data.Function (const)
+import safe Data.Functor ((<$>))
+import safe qualified Data.Map as Map
+import safe Data.Maybe (Maybe (Just, Nothing))
+import safe qualified Data.MultiSet as MultiSet
+import safe Data.Ord (Ord)
+import safe qualified Data.Set as Set
+import safe Data.Traversable (Traversable (sequenceA))
+import safe Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∪)), (∧))
+import safe Language.KellCalculus.AST
+  ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
+    NQTerm (freeNames),
+    Name,
+    Pattern (boundNames, boundVariables, grammar, matchM, sk),
+    Process (Message, NullProcess),
+    ProtoTerm ((≣)),
+    Substitution (Substitution),
+    Variable (Variable),
+    chooseSubstitution,
+    combine,
+    match,
+    toAnnotatedMessages,
+  )
 import Language.KellCalculus.Parser
-import Text.Derp
+  ( bindingTok,
+    endFormTok,
+    endKellTok,
+    endMessageTok,
+    identifier,
+    name,
+    parTok,
+    startFormTok,
+    startKellTok,
+    startMessageTok,
+    starw,
+    (>~<),
+    (|~|),
+  )
+import safe Text.Derp (Parser)
+import Text.Derp.Unsafe (ter, terS, (<|>), (<~>), (==>))
+import safe Text.Show (Show)
+import safe Prelude (error)
 
 class SubPattern ξ where
   matchR :: ξ -> Process PnpJKPattern -> Maybe (Substitution PnpJKPattern)
 
 data MessageTag = Local | Up | Down
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
 messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
@@ -24,7 +64,7 @@ data P'
   | P'P P
   | P'Message Name P'
   | Blank
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance ProtoTerm P' where
   P'Variable _ ≣ P'Variable _ = True
@@ -51,7 +91,7 @@ p' =
 data P
   = PMessage Name P'
   | PParallelComposition P P
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 p :: Parser Char P
 p =
@@ -71,7 +111,7 @@ p =
 data J
   = JMessage MessageTag Name P'
   | JParallelComposition J J
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 j :: Parser Char J
 j =
@@ -98,7 +138,7 @@ j =
         )
 
 data KellMessage = JKellMessage Name Variable
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 kellMessage :: Parser Char KellMessage
 kellMessage =
@@ -113,7 +153,7 @@ data PnpJKPattern
   = J J
   | JKKellMessage KellMessage
   | JKParallelComposition J KellMessage
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance MultiSettable PnpJKPattern where
   toMultiSet m@(J JMessage {}) = MultiSet.singleton m

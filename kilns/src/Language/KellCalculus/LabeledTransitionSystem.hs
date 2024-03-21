@@ -1,5 +1,9 @@
-{-# LANGUAGE PostfixOperators #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Safe #-}
+-- __FIXME__: All matches should be exhaustive. Probably need to extract some
+--            records from existing sum types.
+{-# OPTIONS_GHC -Wno-incomplete-patterns
+                -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.KellCalculus.LabeledTransitionSystem
   ( Concretion (..),
@@ -12,22 +16,47 @@ module Language.KellCalculus.LabeledTransitionSystem
   )
 where
 
-import Data.Foldable
+import Control.Category (Category ((.)))
+import Control.Monad ((=<<))
+import Data.Bool (Bool (False))
+import Data.Eq (Eq ((/=), (==)))
+import Data.Foldable (Foldable (foldMap, foldr), foldrM)
+import Data.Functor ((<$>))
+import Data.Maybe (Maybe (Just, Nothing))
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
+import Data.Ord (Ord)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (Traversable (sequenceA))
 import Language.Common.SetLike
+  ( MultiSettable (toMultiSet),
+    SetLike ((∅), (∖), (∩), (∪)),
+    (∧),
+  )
 import Language.KellCalculus.AST
-import Language.KellCalculus.ReductionSemantics
+  ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
+    NQTerm (freeNames),
+    Name,
+    Pattern (boundNames, boundVariables, sk),
+    Process (Kell, Message, NullProcess, ParallelComposition, Restriction, Trigger),
+    ProtoTerm ((≣)),
+    Term (freeVariables),
+    chooseSubstitution,
+    composeProcesses,
+    match,
+    substitute,
+  )
+import Language.KellCalculus.ReductionSemantics ((/↝), (↝))
+import Prelude (error)
 
 data Concretion ξ
   = Concretion (Set Name) (MultiSet (AnnotatedMessage ξ)) (Process ξ)
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 instance (Pattern ξ) => NQTerm (Concretion ξ) where
   freeNames (Concretion a ω p) =
-    ( Data.Foldable.foldr
+    ( foldr
         (∪)
         (∅)
         ( MultiSet.map
@@ -48,7 +77,7 @@ instance (Pattern ξ) => ProtoTerm (Concretion ξ) where
 
 instance (Pattern ξ) => Term (Concretion ξ) where
   freeVariables (Concretion _ ω p) =
-    Data.Foldable.foldr
+    foldr
       (∪)
       (∅)
       ( MultiSet.map
@@ -65,14 +94,14 @@ instance (Pattern ξ) => Term (Concretion ξ) where
 data SimpleAbstraction ξ
   = PatternAbstraction ξ (Process ξ)
   | SimpleApplicationAbstraction (SimpleAbstraction ξ) (Concretion ξ)
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 data Abstraction ξ
   = SimpleAbstraction (SimpleAbstraction ξ)
   | KellAbstraction Name (SimpleAbstraction ξ) (Process ξ)
   | ApplicationAbstraction (Abstraction ξ) (Concretion ξ)
   | RestrictionAbstraction (Set Name) (Abstraction ξ)
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 instance (Pattern ξ) => NQTerm (Abstraction ξ) where
   freeNames (SimpleAbstraction (PatternAbstraction ξ p)) =
@@ -112,7 +141,7 @@ data Action
   | Receive Name
   | Send Name
   | Composition Action Action
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
 instance NQTerm Action where
   freeNames Complete = (∅)
@@ -131,9 +160,9 @@ data Agent ξ
   = ProcessA (Process ξ)
   | AbstractionA (Abstraction ξ)
   | ConcretionA (Concretion ξ)
-  deriving (Eq, Ord)
+  deriving stock (Eq, Ord)
 
-concretionFrom :: (Pattern ξ) => Agent ξ -> Concretion ξ
+concretionFrom :: Agent ξ -> Concretion ξ
 concretionFrom (ConcretionA c) = c
 concretionFrom _ = error "Not a concretion"
 
@@ -163,11 +192,10 @@ compose (ConcretionA (Concretion a ω p)) (ProcessA q) =
     then Just (ConcretionA (Concretion a ω (ParallelComposition p q)))
     else Nothing
 compose (ConcretionA (Concretion a ω p)) (ConcretionA (Concretion c ω' p')) =
-  if a
-    ∩ (foldMap freeNames ω' ∪ freeNames p')
+  if a ∩ (foldMap freeNames ω' ∪ freeNames p')
     == (∅)
-    ∧ c
-    ∩ (foldMap freeNames ω ∪ freeNames p)
+      ∧ c
+      ∩ (foldMap freeNames ω ∪ freeNames p)
     == (∅)
     then Just (ConcretionA (Concretion (a ∪ c) (ω ∪ ω') (ParallelComposition p p')))
     else Nothing
@@ -200,7 +228,7 @@ papp
           then Nothing
           else Just (ParallelComposition (Kell a (ParallelComposition (substitute r (chooseSubstitution θs)) p) t) q)
 papp (RestrictionAbstraction a f) (Concretion b c p) =
-  if Set.null (a ∩ Data.Foldable.foldr (∪) (∅) (MultiSet.map freeNames c)) ∧ Set.null (b ∩ freeNames f)
+  if Set.null (a ∩ foldr (∪) (∅) (MultiSet.map freeNames c)) ∧ Set.null (b ∩ freeNames f)
     then Restriction (a ∪ b) <$> papp f (Concretion (∅) c p)
     else Nothing
 papp _ _ = Nothing

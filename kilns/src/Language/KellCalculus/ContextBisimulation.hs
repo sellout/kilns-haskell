@@ -1,8 +1,12 @@
+{-# LANGUAGE Safe #-}
+
 module Language.KellCalculus.ContextBisimulation (isClosed) where
 
+import Control.Category (Category ((.)))
+import Data.Bool (Bool)
 import qualified Data.Set as Set
-import Language.KellCalculus.AST
-import Language.KellCalculus.LabeledTransitionSystem
+import Language.KellCalculus.AST (Pattern, Term (freeVariables))
+import Language.KellCalculus.LabeledTransitionSystem (Agent)
 
 isClosed :: (Pattern ξ) => Agent ξ -> Bool
 isClosed = Set.null . freeVariables

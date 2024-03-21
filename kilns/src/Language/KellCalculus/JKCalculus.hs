@@ -1,21 +1,55 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE Unsafe #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Language.KellCalculus.JKCalculus
   ( JKPattern (..),
   )
 where
 
-import qualified Data.Map as Map
-import qualified Data.MultiSet as MultiSet
-import qualified Data.Set as Set
-import Language.Common.SetLike
-import Language.KellCalculus.AST
+import safe Data.Bool (Bool (False))
+import safe Data.Char (Char)
+import safe Data.Eq (Eq ((==)))
+import safe Data.Foldable (Foldable (foldr1))
+import safe Data.Function (const)
+import safe qualified Data.Map as Map
+import safe Data.Maybe (Maybe (Just, Nothing))
+import safe qualified Data.MultiSet as MultiSet
+import safe Data.Ord (Ord)
+import safe Data.Semigroup (Semigroup ((<>)))
+import safe qualified Data.Set as Set
+import safe Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∪)), (∧))
+import safe Language.KellCalculus.AST
+  ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
+    NQTerm (freeNames),
+    Name,
+    Pattern (boundNames, boundVariables, grammar, matchM, sk),
+    ProtoTerm ((≣)),
+    Substitution (Substitution),
+    Variable,
+  )
 import Language.KellCalculus.Parser
-import Text.Derp
+  ( SexpSyntax (SexpSyntax),
+    bindingTok,
+    endFormTok,
+    endKellTok,
+    endMessageTok,
+    name,
+    parTok,
+    startFormTok,
+    startKellTok,
+    startMessageTok,
+    starw,
+    variable,
+    (>~<),
+    (|~|),
+  )
+import safe Text.Derp (Parser)
+import Text.Derp.Unsafe (terS, (<|>), (<~>), (==>))
+import safe Text.Show (Show (show))
+import safe Prelude (error)
 
 data MessageTag = Local | Up | Down
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
 messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
@@ -23,7 +57,7 @@ messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
 data J
   = JMessage MessageTag Name Variable
   | JParallelComposition J J
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax J) where
   show (SexpSyntax ξ) =
@@ -61,7 +95,7 @@ j =
         )
 
 data KellMessage = JKellMessage Name Variable
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax KellMessage) where
   show (SexpSyntax (JKellMessage n v)) =
@@ -80,7 +114,7 @@ data JKPattern
   = J J
   | JKKellMessage KellMessage
   | JKParallelComposition J KellMessage
-  deriving (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Show (SexpSyntax JKPattern) where
   show (SexpSyntax ξ) =

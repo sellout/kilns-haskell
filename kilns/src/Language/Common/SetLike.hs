@@ -1,3 +1,5 @@
+{-# LANGUAGE Safe #-}
+
 module Language.Common.SetLike
   ( (∈),
     (∉),
@@ -8,10 +10,12 @@ module Language.Common.SetLike
 where
 
 -- import Control.Applicative.Unicode
-import Data.Bool.Unicode
-import Data.Foldable.Unicode
+import Data.Bool (Bool)
+import Data.Bool.Unicode ((∧))
+import Data.Foldable.Unicode ((∈), (∉))
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
+import Data.Ord (Ord)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
