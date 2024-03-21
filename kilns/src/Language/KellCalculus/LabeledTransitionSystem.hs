@@ -7,6 +7,7 @@
 
 module Language.KellCalculus.LabeledTransitionSystem
   ( Concretion (..),
+    SimpleAbstraction,
     Abstraction (..),
     Action (..),
     Agent (..),

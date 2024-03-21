@@ -42,7 +42,7 @@ import Text.Show (Show)
 import Prelude (Num ((-)))
 
 -- | Represents both a formal context-free language and the
---   reduction of a member of that language to a value of type `a'.
+--   reduction of a member of that language to a value of type @a@.
 
 --   Languages range of `Token' values.
 

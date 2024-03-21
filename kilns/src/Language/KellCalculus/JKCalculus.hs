@@ -3,6 +3,8 @@
 
 module Language.KellCalculus.JKCalculus
   ( JKPattern (..),
+    J,
+    KellMessage,
   )
 where
 

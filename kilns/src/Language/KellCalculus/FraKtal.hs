@@ -1,7 +1,12 @@
 {-# LANGUAGE Unsafe #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Language.KellCalculus.FraKtal (FraKtal (..)) where
+module Language.KellCalculus.FraKtal
+  ( FraKtal (..),
+    J,
+    KellMessage,
+  )
+where
 
 import safe Control.Category (Category ((.)))
 import safe Data.Bool (Bool (False, True))
