@@ -65,8 +65,13 @@ data ParserRec p t a where
   Emp :: (Ord t, Ord a) => ParserRec p t a
 
 data ContextR p t a b where
-  ConContext :: (Ord t, Ord a, Ord b) => p t b -> ContextR p t (a, b) c -> ContextR p t a c
-  RedContext :: (Ord t, Ord a, Ord b) => (Set a -> Set b) -> ContextR p t b c -> ContextR p t a c
+  ConContext ::
+    (Ord t, Ord a, Ord b) => p t b -> ContextR p t (a, b) c -> ContextR p t a c
+  RedContext ::
+    (Ord t, Ord a, Ord b) =>
+    (Set a -> Set b) ->
+    ContextR p t b c ->
+    ContextR p t a c
   TopContext :: (Ord t, Ord a) => ContextR p t a a
 
 data Token t = Token {tokenClass :: t, tokenValue :: String}
@@ -102,7 +107,15 @@ deriveStep = deriveStepNum defaultCompactSteps
 
 -- inspecting parsers
 
-data ParserRecType = ConType | AltType | RedType | NulType | ZipType | TerType | EpsType | EmpType
+data ParserRecType
+  = ConType
+  | AltType
+  | RedType
+  | NulType
+  | ZipType
+  | TerType
+  | EpsType
+  | EmpType
   deriving stock (Eq, Ord, Show)
 
 -- FPValue
@@ -122,7 +135,10 @@ ambIn :: [Token String]
 ambIn = intersperse (Token "+" "+") (replicate 7 (Token "1" "1"))
 
 sexpIn :: [Token String]
-sexpIn = (\x -> Token x x) <$> words "( s ( s ( s s ( s s s ( s s s ( s ) ( s s ) s s ) s s ) s ) s ) )"
+sexpIn =
+  (\x -> Token x x)
+    <$> words
+      "( s ( s ( s s ( s s s ( s s s ( s ) ( s s ) s s ) s s ) s ) s ) )"
 
 -- makeSExpIn :: Int -> [Token String]
 -- makeSExpIn n = (\x -> Token x x) <$> words ("( " <> build n "s" <> " )")
@@ -134,14 +150,6 @@ sexpIn = (\x -> Token x x) <$> words "( s ( s ( s s ( s s s ( s s s ( s ) ( s s 
 
 someStuff :: [Token String]
 someStuff = (\x -> Token x x) <$> words "x x x x y y y x x"
-
--- nilsE :: () -> Parser String ()
--- nilsE () = expr
---   where
---     expr = op <|> atom
---     op = expr <~> internal ==> const ()
---     atom = ter "x" ==> const ()
---     internal = ter "[" <~> expr <~> ter "]" ==> const ()
 
 -- exprIn :: Int -> [String]
 -- exprIn n =
@@ -155,9 +163,6 @@ someStuff = (\x -> Token x x) <$> words "x x x x y y y x x"
 
 -- lexing
 
--- stepParsers :: (Ord t, Ord a) => [Parser t a] -> [Token t] -> [(Int, Set a, [Token t])]
--- stepParsers ps ts = catMaybes $ map (flip runParseLongestMatch ts) ps
-
 -- longestFirstMatch :: [(Int, Set a, [Token t])] -> Maybe (a, [Token t])
 -- longestFirstMatch rs = fextract <$> foldl pick Nothing rs
 --   where
@@ -166,23 +171,5 @@ someStuff = (\x -> Token x x) <$> words "x x x x y y y x x"
 --                                                | True   = tM
 --     extract (_, res, con) = (Set.toList res !! 0, con)
 
--- fullLex :: (Show t, Ord t, Ord a) => [Parser t a] -> [Token t] -> Either String [a]
--- fullLex ps [] = Right []
--- fullLex ps ts = case longestFirstMatch (stepParsers ps ts) of
---   Nothing -> Left $ printf "cannot parse: %s" (show ts)
---   Just (r, ts') -> (r :) <$> fullLex ps ts'
-
 -- charToken :: Char -> Token Char
 -- charToken c = Token c [c]
-
--- sizes
-
--- reportSizes :: Parser t a -> [Token t] -> String
--- reportSizes = reportSizesN 0
-
--- reportSizesN :: Int -> Parser t a -> [Token t] -> String
--- reportSizesN _ _ [] = ""
--- reportSizesN n p (i:is) = printf "%3s :: %s\n" (show n) (show size) <> reportSizesN (n + 1) p' is
---   where
---     p' = deriveStep p i
---     size = parserSize p'

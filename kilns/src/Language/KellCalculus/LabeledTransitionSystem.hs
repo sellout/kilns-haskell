@@ -17,16 +17,19 @@ module Language.KellCalculus.LabeledTransitionSystem
   )
 where
 
+import Control.Applicative (Applicative (pure))
 import Control.Category (Category ((.)))
 import Control.Monad ((=<<))
 import Data.Bool (Bool (False))
 import Data.Eq (Eq ((/=), (==)))
 import Data.Foldable (Foldable (foldMap, foldr), foldrM)
+import Data.Function (($))
 import Data.Functor ((<$>))
 import Data.Maybe (Maybe (Just, Nothing))
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
 import Data.Ord (Ord)
+import Data.Semigroup (Semigroup ((<>)))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable (sequenceA))
@@ -44,7 +47,6 @@ import Language.KellCalculus.AST
     ProtoTerm ((≣)),
     Term (freeVariables),
     chooseSubstitution,
-    composeProcesses,
     match,
     substitute,
   )
@@ -185,20 +187,17 @@ instance (Pattern ξ) => Term (Agent ξ) where
   freeVariables (ConcretionA c) = freeVariables c
 
 compose :: (Pattern ξ) => Agent ξ -> Agent ξ -> Maybe (Agent ξ)
-compose (ProcessA p) (ProcessA q) = Just (ProcessA (composeProcesses p q))
+compose (ProcessA p) (ProcessA q) = pure . ProcessA $ p <> q
 compose (AbstractionA f) (ProcessA q) =
-  Just (AbstractionA (ApplicationAbstraction f (Concretion (∅) (∅) q)))
+  pure . AbstractionA . ApplicationAbstraction f $ Concretion (∅) (∅) q
 compose (ConcretionA (Concretion a ω p)) (ProcessA q) =
   if a ∩ freeNames q == (∅)
-    then Just (ConcretionA (Concretion a ω (ParallelComposition p q)))
+    then pure . ConcretionA . Concretion a ω $ p <> q
     else Nothing
 compose (ConcretionA (Concretion a ω p)) (ConcretionA (Concretion c ω' p')) =
-  if a ∩ (foldMap freeNames ω' ∪ freeNames p')
-    == (∅)
-      ∧ c
-      ∩ (foldMap freeNames ω ∪ freeNames p)
-    == (∅)
-    then Just (ConcretionA (Concretion (a ∪ c) (ω ∪ ω') (ParallelComposition p p')))
+  if a ∩ (foldMap freeNames ω' ∪ freeNames p') == (∅)
+    ∧ c ∩ (foldMap freeNames ω ∪ freeNames p) == (∅)
+    then pure . ConcretionA . Concretion (a ∪ c) (ω ∪ ω') $ p <> p'
     else Nothing
 compose _ _ = Nothing
 

@@ -152,10 +152,15 @@ library
     multiset,
     charset == 0.3.*,
     base-unicode-symbols == 0.2.*,
+    -- We use `fold1`, which wasn’t added to base until 4.18 (GHC 9.6).
+    semigroupoids,
   hs-source-dirs: src
   ghc-options:
+    -trust base-orphans
     -trust charset
     -trust containers
+    -trust semigroupoids
+    -trust transformers-compat
     -trust unordered-containers
   exposed-modules:
     Language.KellCalculus.Parser

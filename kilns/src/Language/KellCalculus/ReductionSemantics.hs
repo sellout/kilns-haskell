@@ -14,39 +14,35 @@ module Language.KellCalculus.ReductionSemantics
   )
 where
 
+import Control.Applicative (Applicative (pure))
+import Control.Category (Category ((.)))
 import Data.Bool (Bool (False, True))
-import Data.Foldable (foldMap, foldr)
-import Data.Maybe (Maybe (Just, Nothing), maybe)
+import Data.Foldable (Foldable (fold, foldMap, foldr))
+import Data.Function (($))
+import Data.Maybe (Maybe (Nothing), maybe)
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
+import Data.Semigroup (Semigroup ((<>)))
 import qualified Data.Set as Set
 import Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∩), (∪)))
 import Language.KellCalculus.AST
   ( AnnotatedMessage (DownMessage, KellMessage, LocalMessage, UpMessage),
     NQTerm (freeNames),
     Pattern,
-    Process
-      ( Kell,
-        Message,
-        NullProcess,
-        ParallelComposition,
-        Restriction,
-        Trigger
-      ),
+    Process (Kell, Message, ParallelComposition, Restriction, Trigger),
+    cataMEC,
     chooseSubstitution,
-    composeProcesses,
     match,
     substitute,
-    traverseEC,
   )
 
 when :: Bool -> a -> Maybe a
-when True x = Just x
+when True x = pure x
 when False _ = Nothing
 
 (↝) :: (Pattern ξ) => Process ξ -> Maybe (Process ξ)
 -- SR.Ctx
-(↝) r = traverseEC sr r
+(↝) r = cataMEC sr r
   where
     -- SR.Kell
     sr (Kell b (Restriction a p) q) =
@@ -66,7 +62,7 @@ when False _ = Nothing
         (Set.null (a ∩ freeNames q))
         (Restriction a (ParallelComposition q p))
     -- FIXME: missing SR.α
-    sr p = Just p
+    sr p = pure p
 
 subReduce :: (Pattern ξ) => Process ξ -> Maybe (Process ξ)
 subReduce = (↝)
@@ -129,7 +125,7 @@ subReduce = (↝)
         Kell a p q ->
           let (md, v) = δ (toMultiSet p)
            in ( MultiSet.map (\(LocalMessage b r) -> DownMessage b r a) md,
-                MultiSet.singleton (Kell a (foldr composeProcesses NullProcess v) q)
+                MultiSet.singleton (Kell a (fold v) q)
               )
         _ -> ((∅), (∅))
     )
@@ -167,12 +163,11 @@ reduce (ParallelComposition (Trigger ξ p) u) =
    in if Set.null θ
         then Nothing
         else
-          Just
-            ( foldr
-                composeProcesses
-                (substitute p (chooseSubstitution θ))
-                (v1 ∪ v2 ∪ v3)
-            )
+          pure
+            . foldr (<>) (substitute p (chooseSubstitution θ))
+            $ v1
+              ∪ v2
+              ∪ v3
 -- R.Red.G
 reduce
   ( ParallelComposition
@@ -188,19 +183,18 @@ reduce
      in if Set.null θ
           then Nothing
           else
-            Just
-              ( foldr
-                  composeProcesses
-                  ( Kell
-                      b
-                      ( foldr
-                          composeProcesses
-                          (substitute p (chooseSubstitution θ))
-                          (v1 ∪ v2 ∪ v3)
-                      )
-                      t
-                  )
-                  v4
-              )
+            pure $
+              foldr
+                (<>)
+                ( Kell
+                    b
+                    ( foldr (<>) (substitute p (chooseSubstitution θ)) $
+                        v1
+                          ∪ v2
+                          ∪ v3
+                    )
+                    t
+                )
+                v4
 -- remaining cases
 reduce _ = Nothing

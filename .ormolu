@@ -1,0 +1,10 @@
+infixr 1 <|>
+infix 2 ==>
+infix 2 ==>|
+infixr 3 >~<
+infixr 4 |~|
+infixr 5 <~>
+
+infixr 3 ∧
+infixl 6 ∪
+infixr 6 ∩

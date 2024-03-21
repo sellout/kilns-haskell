@@ -27,17 +27,19 @@ import safe Data.Char (Char)
 import safe qualified Data.CharSet as CharSet
 import safe qualified Data.CharSet.Unicode.Category as Unicode
 import safe Data.Eq (Eq ((==)))
-import safe Data.Foldable (Foldable (foldr))
+import safe Data.Foldable (Foldable (toList))
 import safe Data.Function (const, ($))
 import safe Data.Functor (Functor (fmap), (<$>))
 import safe qualified Data.List as List
+import safe Data.List.NonEmpty (NonEmpty ((:|)))
 import safe Data.Maybe (Maybe (Just, Nothing), catMaybes, fromMaybe, maybe)
 import safe Data.Monoid (Monoid (mconcat))
 import safe Data.Ord (Ord ((<=)))
 import safe Data.Semigroup (Semigroup ((<>)))
+import safe Data.Semigroup.Foldable (Foldable1 (fold1))
 import safe qualified Data.Set as Set
 import safe Data.String (String)
-import safe Data.Tuple (fst, snd)
+import safe Data.Tuple (fst, snd, uncurry)
 import Language.Common.SetLike (SetLike ((∪)))
 import safe Language.KellCalculus.AST
   ( Name (Name),
@@ -52,7 +54,6 @@ import safe Language.KellCalculus.AST
         Trigger
       ),
     Variable (Variable),
-    composeProcesses,
   )
 import safe Text.Derp (Parser)
 import Text.Derp.Unsafe
@@ -90,7 +91,7 @@ maybeComment :: Parser Char (Maybe String)
 maybeComment = whitespaceChar ==> const Nothing <|> comment ==> Just
 
 whitespace :: Parser Char [String]
-whitespace = star1 maybeComment ==> catMaybes
+whitespace = star1 maybeComment ==> catMaybes . toList
 
 whitespace' :: Parser Char [String]
 whitespace' = star maybeComment ==> catMaybes
@@ -113,8 +114,8 @@ optionw p = option (whitespace <~> p) ==> (<$>) snd
 starw :: (Ord a) => Parser Char a -> Parser Char [a]
 starw p = star (whitespace <~> p) ==> fmap snd
 
-star1w :: (Ord a) => Parser Char a -> Parser Char [a]
-star1w p = p <~> star (whitespace <~> p) ==> (\(a, b) -> a : fmap snd b)
+star1w :: (Ord a) => Parser Char a -> Parser Char (NonEmpty a)
+star1w p = p <~> starw p ==> uncurry (:|)
 
 startKellTok :: Parser Char String
 startKellTok = ter '['
@@ -197,62 +198,39 @@ addContinuation _ _ = error "Impossible continuation application."
 
 continuation :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 continuation ξ =
-  startFormTok
-    |~| contTok
+  startFormTok |~| contTok
     >~< (kell ξ <|> message ξ)
-    >~< process ξ
-    |~| endFormTok
+    >~< process ξ |~| endFormTok
     ==> \(_, (_, (p, (cont, _)))) -> addContinuation p cont
 
 kell :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 kell ξ =
-  startKellTok
-    |~| name
-    >~< process ξ
-    <~> optionw (process ξ)
-    <~> endKellTok
+  startKellTok |~| name >~< process ξ <~> optionw (process ξ) <~> endKellTok
     ==> (\(_, (a, (q, (p, _)))) -> Kell a q (fromMaybe NullProcess p))
 
 message :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 message ξ =
   startMessageTok
-    |~| name
-    <~> optionw (process ξ <~> optionw (process ξ))
-    <~> endMessageTok
+    |~| name <~> optionw (process ξ <~> optionw (process ξ)) <~> endMessageTok
     ==> ( \(_, (a, (p, _))) ->
-            maybe
-              (Message a NullProcess NullProcess)
-              (\q -> Message a (fst q) . fromMaybe NullProcess $ snd q)
-              p
+            uncurry (Message a) $
+              maybe (NullProcess, NullProcess) (fmap $ fromMaybe NullProcess) p
         )
 
 trigger :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 trigger ξ =
-  startFormTok
-    |~| triggerTok
-    >~< ξ
-    >~< process ξ
-    <~> endFormTok
+  startFormTok |~| triggerTok >~< ξ >~< process ξ <~> endFormTok
     ==> (\(_, (_, (pat, (proc, _)))) -> Trigger pat proc)
 
 restriction :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 restriction ξ =
-  startFormTok
-    |~| restrictionTok
-    >~< name
-    >~< process ξ
-    <~> endFormTok
+  startFormTok |~| restrictionTok >~< name >~< process ξ <~> endFormTok
     ==> (\(_, (_, (a, (p, _)))) -> Restriction (Set.singleton a) p)
 
 parallelComposition :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 parallelComposition ξ =
-  startFormTok
-    |~| parTok
-    <~> starw (process ξ)
-    <~> endFormTok
-    ==> ( \(_, (_, (p, _))) ->
-            foldr composeProcesses NullProcess p
-        )
+  startFormTok |~| parTok >~< star1w (process ξ) <~> endFormTok
+    ==> (\(_, (_, (p, _))) -> fold1 p)
 
 process :: (Pattern ξ) => Parser Char ξ -> Parser Char (Process ξ)
 process ξ =
@@ -267,8 +245,7 @@ process ξ =
             <|> continuation ξ
         )
     <~> whitespace'
-    ==> fst
-    . snd
+    ==> fst . snd
 
 instance (Pattern ξ, Show (SexpSyntax ξ)) => Show (SexpSyntax (Process ξ)) where
   show (SexpSyntax k) =
@@ -288,11 +265,26 @@ instance (Pattern ξ, Show (SexpSyntax ξ)) => Show (SexpSyntax (Process ξ)) wh
           <> show (SexpSyntax p)
           <> ")"
       Message a NullProcess NullProcess -> "{" <> show (SexpSyntax a) <> "}"
-      Message a p NullProcess -> "{" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "}"
+      Message a p NullProcess ->
+        "{" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "}"
       Message a p q ->
-        "(cont {" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "} " <> show (SexpSyntax q) <> ")"
-      ParallelComposition p q -> "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
+        "(cont {"
+          <> show (SexpSyntax a)
+          <> " "
+          <> show (SexpSyntax p)
+          <> "} "
+          <> show (SexpSyntax q)
+          <> ")"
+      ParallelComposition p q ->
+        "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
       Kell a NullProcess NullProcess -> "[" <> show (SexpSyntax a) <> "]"
-      Kell a p NullProcess -> "[" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "]"
+      Kell a p NullProcess ->
+        "[" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "]"
       Kell a p q ->
-        "(cont [" <> show (SexpSyntax a) <> " " <> show (SexpSyntax p) <> "] " <> show (SexpSyntax q) <> ")"
+        "(cont ["
+          <> show (SexpSyntax a)
+          <> " "
+          <> show (SexpSyntax p)
+          <> "] "
+          <> show (SexpSyntax q)
+          <> ")"

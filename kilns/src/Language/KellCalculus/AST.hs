@@ -16,27 +16,32 @@ module Language.KellCalculus.AST
     match,
     combine,
     substitute,
-    composeProcesses,
     toAnnotatedMessages,
     chooseSubstitution,
-    traverseEC,
+    cataMEC,
   )
 where
 
+import Control.Applicative (Applicative ((<*>)))
+import Control.Category (Category ((.)))
+import Control.Monad (Monad, (=<<))
 import Data.Bool (Bool (False, True))
 import Data.Char (Char)
 import Data.Eq (Eq ((==)))
-import Data.Foldable (Foldable (foldr))
-import Data.Function (($))
+import Data.Foldable (Foldable (foldr, toList))
+import Data.Function (flip, ($))
 import Data.Functor ((<$>))
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (Maybe (Just, Nothing), mapMaybe)
+import Data.Maybe (Maybe, mapMaybe)
 import qualified Data.Maybe as Maybe
+import Data.Monoid (Monoid (mempty))
 import Data.MultiSet (MultiSet)
 import qualified Data.MultiSet as MultiSet
 import Data.Ord (Ord)
+import Data.Semigroup (Semigroup ((<>)))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String (String)
@@ -66,7 +71,7 @@ instance NQTerm Name where
   freeNames a = Set.singleton a
 
 instance ProtoTerm Name where
-  (Name a) ≣ (Name b) = a == b
+  Name a ≣ Name b = a == b
 
 instance Term Name where
   freeVariables _ = (∅)
@@ -116,7 +121,11 @@ instance (Pattern ξ) => ProtoTerm (Process ξ) where
       a1 == a2 ∧ p1 ≣ p2 ∧ q1 ≣ q2 ∧ Set.null (a2 ∩ freeNames q2)
   -- S.Nu.Kell
   Kell b1 (Restriction a1 p1) q1 ≣ Restriction a2 (Kell b2 p2 q2) =
-    a1 == a2 ∧ b1 == b2 ∧ p1 ≣ p2 ∧ q1 ≣ q2 ∧ Set.null (a2 ∩ (freeNames b2 ∪ freeNames q2))
+    a1 == a2
+      ∧ b1 == b2
+      ∧ p1 ≣ p2
+      ∧ q1 ≣ q2
+      ∧ Set.null (a2 ∩ (freeNames b2 ∪ freeNames q2))
   -- S.Trig
   Trigger ξ p1 ≣ Trigger ζ p2 = p1 ≣ p2 ∧ ξ ≣ ζ
   -- S.a
@@ -137,16 +146,25 @@ instance (Pattern ξ) => MultiSettable (Process ξ) where
   toMultiSet (ParallelComposition p q) = toMultiSet p ∪ toMultiSet q
   toMultiSet p = MultiSet.singleton p
 
--- this should keep processes is some normal-ish form, where we treat
--- ParallelComposition as a Cons
-composeProcesses :: (Pattern ξ) => Process ξ -> Process ξ -> Process ξ
-composeProcesses p NullProcess = p
-composeProcesses NullProcess p = p
-composeProcesses (ParallelComposition p q) c@(ParallelComposition _ _) =
-  composeProcesses p (composeProcesses q c)
-composeProcesses p c@(ParallelComposition _ _) = ParallelComposition p c
-composeProcesses c@(ParallelComposition _ _) p = ParallelComposition p c
-composeProcesses p q = ParallelComposition p q
+-- |
+--
+--  __NB__: This assumes that `ParallelComposition` is always nested in the
+--          second argument (like a linked list) and maintains that property, so
+--          this should keep processes is some normal-ish form.
+--
+--  __TODO__: This should be commutative, but taking advantage of that here may
+--            break strict equality of results, so verify that property at some
+--            point.
+instance Semigroup (Process ξ) where
+  p <> NullProcess = p
+  NullProcess <> p = p
+  ParallelComposition p q <> ParallelComposition p' q' =
+    ParallelComposition p . ParallelComposition p' $ q <> q'
+  c@ParallelComposition {} <> p = ParallelComposition p c
+  p <> q = ParallelComposition p q
+
+instance Monoid (Process ξ) where
+  mempty = NullProcess
 
 data AnnotatedMessage ξ
   = LocalMessage Name (Process ξ)
@@ -163,10 +181,10 @@ instance (Pattern ξ) => NQTerm (AnnotatedMessage ξ) where
   freeNames (KellMessage a p) = freeNames a ∪ freeNames p
 
 instance (Pattern ξ) => ProtoTerm (AnnotatedMessage ξ) where
-  (LocalMessage a p) ≣ (LocalMessage b q) = a ≣ b ∧ p ≣ q
-  (UpMessage a p k) ≣ (UpMessage b q l) = a ≣ b ∧ p ≣ q ∧ k ≣ l
-  (DownMessage a p k) ≣ (DownMessage b q l) = a ≣ b ∧ p ≣ q ∧ k ≣ l
-  (KellMessage a p) ≣ (KellMessage b q) = a ≣ b ∧ p ≣ q
+  LocalMessage a p ≣ LocalMessage b q = a ≣ b ∧ p ≣ q
+  UpMessage a p k ≣ UpMessage b q l = a ≣ b ∧ p ≣ q ∧ k ≣ l
+  DownMessage a p k ≣ DownMessage b q l = a ≣ b ∧ p ≣ q ∧ k ≣ l
+  KellMessage a p ≣ KellMessage b q = a ≣ b ∧ p ≣ q
   _ ≣ _ = False
 
 instance (Pattern ξ) => Term (AnnotatedMessage ξ) where
@@ -215,31 +233,18 @@ instance AnyContext ExecutionContext where
   fillHole (KellEC a c q) p = Kell a (fillHole c p) q
   fillHole (ParallelCompositionEC p c) q = ParallelComposition p (fillHole c q)
 
-andThen :: Maybe a -> Maybe a -> Maybe a
-x `andThen` y = case x of
-  Just _ -> y
-  Nothing -> Nothing
-
-traverseEC ::
-  (Pattern ξ) =>
-  (Process ξ -> Maybe (Process ξ)) ->
+-- | This is a restricted monadic fold of `Process` that only affects the
+-- execution context of a process.
+cataMEC ::
+  (Monad f, Pattern ξ) =>
+  (Process ξ -> f (Process ξ)) ->
   Process ξ ->
-  Maybe (Process ξ)
-traverseEC f (Restriction a p) =
-  let sub = traverseEC f p in sub `andThen` f (Restriction a (Maybe.fromJust sub))
-traverseEC f (Kell a p q) =
-  let sub = traverseEC f p in sub `andThen` f (Kell a (Maybe.fromJust sub) q)
-traverseEC f (ParallelComposition p q) =
-  let sub1 = traverseEC f p
-      sub2 = traverseEC f q
-   in case sub1 of
-        Just p' -> case sub2 of
-          Just q' -> f (ParallelComposition p' q')
-          Nothing -> f (ParallelComposition p' q)
-        Nothing -> case sub2 of
-          Just q' -> f (ParallelComposition p q')
-          Nothing -> Nothing
-traverseEC f p = f p
+  f (Process ξ)
+cataMEC f (Restriction a p) = f . Restriction a =<< cataMEC f p
+cataMEC f (Kell a p q) = f . flip (Kell a) q =<< cataMEC f p
+cataMEC f (ParallelComposition p q) =
+  f =<< ((<>) <$> cataMEC f p <*> cataMEC f q)
+cataMEC f p = f p
 
 -- data ExecutionContextTree ξ = Leaf (Process ξ)
 --                             | Branch (ExecutionContext ξ)
@@ -267,11 +272,12 @@ class (MultiSettable ξ, NQTerm ξ, ProtoTerm ξ, Show ξ) => Pattern ξ where
   sk :: ξ -> MultiSet Name
   grammar :: Parser Char ξ
 
-combine :: (Pattern ξ) => [Substitution ξ] -> Substitution ξ
-combine (Substitution nm1 vm1 : Substitution nm2 vm2 : ses) =
-  combine (Substitution (Map.union nm1 nm2) (Map.union vm1 vm2) : ses)
-combine [s] = s
-combine [] = error "Can not combine zero substitutions"
+instance Semigroup (Substitution ξ) where
+  Substitution nm1 vm1 <> Substitution nm2 vm2 =
+    Substitution (Map.union nm1 nm2) (Map.union vm1 vm2)
+
+combine :: NonEmpty (Substitution ξ) -> Substitution ξ
+combine (h :| t) = foldr (<>) h t
 
 -- this is useful if you want to use match farther down in a pattern match
 toAnnotatedMessages :: (Pattern ξ) => Process ξ -> MultiSet (AnnotatedMessage ξ)
@@ -289,17 +295,17 @@ match :: (Pattern ξ) => ξ -> MultiSet (AnnotatedMessage ξ) -> Set (Substituti
 match ξr m =
   let ξrs = MultiSet.elems (toMultiSet ξr)
       ms = MultiSet.elems m
-      js = [0, 1 .. List.length ξrs - 1]
+      js = 0 :| [1 .. List.length ξrs - 1]
    in Set.fromList
-        ( mapMaybe
-            ( \σ ->
-                combine
-                  <$> traverse
-                    (\j -> matchM (ξrs List.!! j) (ms List.!! (σ List.!! j)))
-                    js
-            )
-            (List.permutations js)
-        )
+        . mapMaybe
+          ( \σ ->
+              combine
+                <$> traverse
+                  (\j -> matchM (ξrs List.!! j) (ms List.!! (σ List.!! j)))
+                  js
+          )
+        . List.permutations
+        $ toList js
 
 -- ensure `toSet (sk ξ) ⊆ freeNames ξ`
 -- ensure `when ξ ≣ ζ
@@ -314,17 +320,13 @@ substitute p θ@(Substitution nm vm) =
     NullProcess -> NullProcess
     ProcessVariable x -> Maybe.fromMaybe p $ Map.lookup x vm
     Trigger ξ q ->
-      Trigger
-        ξ
-        ( substitute
-            q
-            ( Substitution
-                (removeFromMap nm (boundNames ξ))
-                (removeFromMap vm (boundVariables ξ))
-            )
-        )
+      Trigger ξ
+        . substitute q
+        . Substitution (removeFromMap nm (boundNames ξ))
+        . removeFromMap vm
+        $ boundVariables ξ
     Restriction a q ->
-      Restriction a (substitute q (Substitution (removeFromMap nm a) vm))
+      Restriction a . substitute q $ Substitution (removeFromMap nm a) vm
     Message a q r -> Message (substName a) (substitute q θ) (substitute r θ)
     ParallelComposition q r ->
       ParallelComposition (substitute q θ) (substitute r θ)

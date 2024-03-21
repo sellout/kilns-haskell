@@ -1,6 +1,9 @@
 {-# LANGUAGE Unsafe #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
+-- | A pattern language for the kell calculus. It’s like
+--  "Language.KellCalculus.PnpJKCalculus", but adds checking and binding of
+--  /complements/ of message arguments. This is defined in §5.
 module Language.KellCalculus.FraKtal
   ( FraKtal (..),
     J,
@@ -12,16 +15,15 @@ import safe Control.Category (Category ((.)))
 import safe Data.Bool (Bool (False, True))
 import safe Data.Char (Char)
 import safe Data.Eq (Eq ((/=), (==)))
-import safe Data.Foldable (Foldable (foldr1))
-import safe Data.Function (const)
+import safe Data.Function (const, ($))
 import safe Data.Functor ((<$>))
 import safe qualified Data.Map as Map
 import safe Data.Maybe (Maybe (Just, Nothing))
 import safe qualified Data.MultiSet as MultiSet
 import safe Data.Ord (Ord)
 import safe Data.Semigroup (Semigroup ((<>)))
+import safe Data.Semigroup.Foldable (Foldable1 (fold1))
 import safe qualified Data.Set as Set
-import safe Data.Traversable (Traversable (sequenceA))
 import safe Data.Tuple (snd)
 import safe Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∪)), (∧))
 import safe Language.KellCalculus.AST
@@ -34,7 +36,6 @@ import safe Language.KellCalculus.AST
     Substitution (Substitution),
     Variable,
     chooseSubstitution,
-    combine,
     match,
     toAnnotatedMessages,
   )
@@ -46,10 +47,10 @@ import Language.KellCalculus.Parser
     endMessageTok,
     name,
     parTok,
+    star1w,
     startFormTok,
     startKellTok,
     startMessageTok,
-    starw,
     variable,
     (>~<),
     (|~|),
@@ -66,7 +67,7 @@ data MessageTag = Local | Up | Down
   deriving stock (Eq, Ord, Show)
 
 messageTag :: Parser Char MessageTag
-messageTag = (terS "up" ==> const Up) <|> (terS "down" ==> const Down)
+messageTag = terS "up" ==> const Up <|> terS "down" ==> const Down
 
 data P'
   = P'Variable Variable
@@ -93,109 +94,97 @@ instance Show (SexpSyntax P') where
     case ξ of
       P'Variable v -> "?" <> show (SexpSyntax v)
       P'P p -> show (SexpSyntax p)
-      P'Message n p -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
-      P'Complement n p -> "{(/= " <> show (SexpSyntax n) <> ") " <> show (SexpSyntax p) <> "}"
-      P'BoundComplement n b p -> "{(/= " <> show (SexpSyntax n) <> " ?" <> show (SexpSyntax b) <> ") " <> show (SexpSyntax p) <> "}"
+      P'Message n p ->
+        "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
+      P'Complement n p ->
+        "{(/= " <> show (SexpSyntax n) <> ") " <> show (SexpSyntax p) <> "}"
+      P'BoundComplement n b p ->
+        "{(/= "
+          <> show (SexpSyntax n)
+          <> " ?"
+          <> show (SexpSyntax b)
+          <> ") "
+          <> show (SexpSyntax p)
+          <> "}"
       Blank -> "_"
 
 p' :: Parser Char P'
 p' =
-  (bindingTok <~> variable ==> P'Variable . snd)
-    <|> (p ==> P'P)
-    <|> ( startMessageTok
-            |~| bindingTok
-            <~> name
-            >~< p'
-            |~| endMessageTok
-            ==> (\(_, (_, (a, (p, _)))) -> P'Message a p)
-        )
-    <|> ( startMessageTok
-            |~| startFormTok
-            |~| terS "/="
-            >~< name
-            |~| endFormTok
-            >~< p'
-            |~| endMessageTok
-            ==> (\(_, (_, (_, (a, (_, (p, _)))))) -> P'Complement a p)
-        )
-    <|> ( startMessageTok
-            |~| startFormTok
-            |~| terS "/="
-            >~< name
-            >~< bindingTok
-            <~> name
-            |~| endFormTok
-            >~< p'
-            |~| endMessageTok
-            ==> (\(_, (_, (_, (a, (_, (m, (_, (p, _)))))))) -> P'BoundComplement m a p)
-        )
-    <|> (ter '_' ==> const Blank)
+  bindingTok <~> variable ==> P'Variable . snd
+    <|> p ==> P'P
+    <|> startMessageTok |~| bindingTok <~> name >~< p' |~| endMessageTok
+      ==> (\(_, (_, (a, (p, _)))) -> P'Message a p)
+    <|> startMessageTok |~| startFormTok |~| terS "/="
+      >~< name |~| endFormTok
+      >~< p' |~| endMessageTok
+      ==> (\(_, (_, (_, (a, (_, (p, _)))))) -> P'Complement a p)
+    <|> startMessageTok |~| startFormTok |~| terS "/="
+      >~< name
+      >~< bindingTok <~> name |~| endFormTok
+      >~< p' |~| endMessageTok
+      ==> ( \(_, (_, (_, (a, (_, (m, (_, (p, _)))))))) ->
+              P'BoundComplement m a p
+          )
+    <|> ter '_' ==> const Blank
 
 data P
   = PMessage Name P'
   | PParallelComposition P P
   deriving stock (Eq, Ord, Show)
 
+instance Semigroup P where
+  a@PMessage {} <> b = PParallelComposition a b
+  c@PParallelComposition {} <> a@PMessage {} = PParallelComposition a c
+  PParallelComposition p q <> PParallelComposition p' q' =
+    PParallelComposition p . PParallelComposition p' $ q <> q'
+
 instance Show (SexpSyntax P) where
   show (SexpSyntax ξ) =
     case ξ of
-      PMessage n p -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
-      PParallelComposition p q -> "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
+      PMessage n p ->
+        "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax p) <> "}"
+      PParallelComposition p q ->
+        "(par " <> show (SexpSyntax p) <> " " <> show (SexpSyntax q) <> ")"
 
 p :: Parser Char P
 p =
-  ( startMessageTok
-      |~| name
-      >~< p'
-      |~| endMessageTok
-      ==> (\(_, (a, (p, _))) -> PMessage a p)
-  )
-    <|> ( startFormTok
-            |~| parTok
-            <~> starw p
-            |~| endFormTok
-            ==> (\(_, (_, (p, _))) -> foldr1 PParallelComposition p)
-        )
+  startMessageTok |~| name >~< p' |~| endMessageTok
+    ==> (\(_, (a, (p, _))) -> PMessage a p)
+    <|> startFormTok |~| parTok >~< star1w p |~| endFormTok
+      ==> (\(_, (_, (p, _))) -> fold1 p)
 
 data J
   = JMessage MessageTag Name P'
   | JParallelComposition J J
   deriving stock (Eq, Ord, Show)
 
+instance Semigroup J where
+  a@JMessage {} <> b = JParallelComposition a b
+  c@JParallelComposition {} <> a@JMessage {} = JParallelComposition a c
+  JParallelComposition p q <> JParallelComposition p' q' =
+    JParallelComposition p . JParallelComposition p' $ q <> q'
+
 instance Show (SexpSyntax J) where
   show (SexpSyntax ξ) =
     case ξ of
-      JMessage Local n v -> "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "}"
+      JMessage Local n v ->
+        "{" <> show (SexpSyntax n) <> " " <> show (SexpSyntax v) <> "}"
       JMessage Up n v -> "(up " <> show (SexpSyntax (JMessage Local n v)) <> ")"
-      JMessage Down n v -> "(down " <> show (SexpSyntax (JMessage Local n v)) <> ")"
+      JMessage Down n v ->
+        "(down " <> show (SexpSyntax (JMessage Local n v)) <> ")"
       JParallelComposition j j' ->
-        show (SexpSyntax j)
-          <> " "
-          <> show (SexpSyntax j')
+        show (SexpSyntax j) <> " " <> show (SexpSyntax j')
 
 j :: Parser Char J
 j =
-  ( startFormTok
-      |~| messageTag
-      >~< startMessageTok
-      |~| name
-      >~< p'
-      |~| endMessageTok
-      |~| endFormTok
-      ==> (\(_, (tag, (_, (a, (p, _))))) -> JMessage tag a p)
-  )
-    <|> ( startMessageTok
-            |~| name
-            >~< p'
-            |~| endMessageTok
-            ==> (\(_, (a, (p, _))) -> JMessage Local a p)
-        )
-    <|> ( startFormTok
-            |~| parTok
-            <~> starw j
-            |~| endFormTok
-            ==> (\(_, (_, (p, _))) -> foldr1 JParallelComposition p)
-        )
+  startFormTok |~| messageTag
+    >~< startMessageTok |~| name
+    >~< p' |~| endMessageTok |~| endFormTok
+    ==> (\(_, (tag, (_, (a, (p, _))))) -> JMessage tag a p)
+    <|> startMessageTok |~| name >~< p' |~| endMessageTok
+      ==> (\(_, (a, (p, _))) -> JMessage Local a p)
+    <|> startFormTok |~| parTok >~< star1w j |~| endFormTok
+      ==> (\(_, (_, (p, _))) -> fold1 p)
 
 data KellMessage = JKellMessage Name Variable
   deriving stock (Eq, Ord, Show)
@@ -206,10 +195,7 @@ instance Show (SexpSyntax KellMessage) where
 
 kellMessage :: Parser Char KellMessage
 kellMessage =
-  startKellTok
-    |~| name
-    >~< variable
-    |~| endKellTok
+  startKellTok |~| name >~< variable |~| endKellTok
     ==> (\(_, (a, (x, _))) -> JKellMessage a x)
 
 data FraKtal
@@ -224,11 +210,7 @@ instance Show (SexpSyntax FraKtal) where
       J j -> show (SexpSyntax j)
       JKKellMessage k -> show (SexpSyntax k)
       JKParallelComposition j k ->
-        "(par "
-          <> show (SexpSyntax j)
-          <> " "
-          <> show (SexpSyntax k)
-          <> ")"
+        "(par " <> show (SexpSyntax j) <> " " <> show (SexpSyntax k) <> ")"
 
 instance MultiSettable FraKtal where
   toMultiSet m@(J JMessage {}) = MultiSet.singleton m
@@ -243,21 +225,12 @@ instance SubPattern P' where
   matchR (P'Variable x) p = Just (Substitution Map.empty (Map.singleton x p))
   matchR (P'P p) q = matchR p q
   matchR (P'Message a p') (Message b p NullProcess) =
-    combine
-      <$> sequenceA
-        [ Just (Substitution (Map.singleton a b) Map.empty),
-          matchR p' p
-        ]
+    (Substitution (Map.singleton a b) Map.empty <>) <$> matchR p' p
   matchR (P'Complement a p') (Message b p NullProcess) =
     if a /= b then matchR p' p else Nothing
   matchR (P'BoundComplement m a p') (Message b p NullProcess) =
     if a /= b
-      then
-        combine
-          <$> sequenceA
-            [ Just (Substitution (Map.singleton m b) Map.empty),
-              matchR p' p
-            ]
+      then (Substitution (Map.singleton m b) Map.empty <>) <$> matchR p' p
       else Nothing
   matchR _ _ = Nothing
 
@@ -352,12 +325,7 @@ instance Pattern FraKtal where
   sk (JKKellMessage (JKellMessage a _)) = MultiSet.singleton a
   sk (JKParallelComposition p k) = sk (J p) ∪ sk (JKKellMessage k)
   grammar =
-    (j ==> J)
-      <|> (kellMessage ==> JKKellMessage)
-      <|> ( startFormTok
-              |~| parTok
-              <~> starw j
-              >~< kellMessage
-              |~| endFormTok
-              ==> (\(_, (_, (j, (k, _)))) -> JKParallelComposition (foldr1 JParallelComposition j) k)
-          )
+    j ==> J
+      <|> kellMessage ==> JKKellMessage
+      <|> startFormTok |~| parTok >~< star1w j >~< kellMessage |~| endFormTok
+        ==> (\(_, (_, (js, (k, _)))) -> JKParallelComposition (fold1 js) k)
