@@ -39,34 +39,6 @@
         "type": "github"
       }
     },
-    "concat": {
-      "inputs": {
-        "bash-strict-mode": [
-          "flaky",
-          "bash-strict-mode"
-        ],
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "home-manager": "home-manager",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1709117943,
-        "narHash": "sha256-3LXt0nQBSsEOe9h6j4gbSEf9vyjmTRN2xq4k8Emu7/8=",
-        "owner": "compiling-to-categories",
-        "repo": "concat",
-        "rev": "7aa7d5ebe165161b7c0aafb8af006020534eaf70",
-        "type": "github"
-      },
-      "original": {
-        "owner": "compiling-to-categories",
-        "repo": "concat",
-        "type": "github"
-      }
-    },
     "flake-schemas": {
       "locked": {
         "lastModified": 1701189173,
@@ -85,7 +57,10 @@
     },
     "flake-utils": {
       "inputs": {
-        "systems": "systems"
+        "systems": [
+          "flaky",
+          "systems"
+        ]
       },
       "locked": {
         "lastModified": 1731533236,
@@ -104,16 +79,12 @@
     "flaky": {
       "inputs": {
         "bash-strict-mode": "bash-strict-mode",
-        "flake-utils": [
-          "flake-utils"
-        ],
+        "flake-utils": "flake-utils",
         "garnix-systems": "garnix-systems",
-        "home-manager": "home-manager_2",
-        "nixpkgs": [
-          "nixpkgs"
-        ],
+        "home-manager": "home-manager",
+        "nixpkgs": "nixpkgs",
         "project-manager": "project-manager",
-        "systems": "systems_2"
+        "systems": "systems"
       },
       "locked": {
         "lastModified": 1762936732,
@@ -126,6 +97,41 @@
       "original": {
         "owner": "sellout",
         "repo": "flaky",
+        "type": "github"
+      }
+    },
+    "flaky-haskell": {
+      "inputs": {
+        "flake-utils": [
+          "flaky-haskell",
+          "flaky",
+          "flake-utils"
+        ],
+        "flaky": [
+          "flaky"
+        ],
+        "nixpkgs": [
+          "flaky-haskell",
+          "flaky",
+          "nixpkgs"
+        ],
+        "systems": [
+          "flaky-haskell",
+          "flaky",
+          "systems"
+        ]
+      },
+      "locked": {
+        "lastModified": 1757916616,
+        "narHash": "sha256-k1ov5Vn8xaL0vCM1WARgc6cJ/Ee5xNoL3jzgoThHjAM=",
+        "owner": "sellout",
+        "repo": "flaky-haskell",
+        "rev": "292cbaa2fd7662a62c1544e888f3cdbdbbf44924",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sellout",
+        "repo": "flaky-haskell",
         "type": "github"
       }
     },
@@ -145,28 +151,6 @@
       }
     },
     "home-manager": {
-      "inputs": {
-        "nixpkgs": [
-          "concat",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1700814205,
-        "narHash": "sha256-lWqDPKHRbQfi+zNIivf031BUeyciVOtwCwTjyrhDB5g=",
-        "owner": "nix-community",
-        "repo": "home-manager",
-        "rev": "aeb2232d7a32530d3448318790534d196bf9427a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "ref": "release-23.11",
-        "repo": "home-manager",
-        "type": "github"
-      }
-    },
-    "home-manager_2": {
       "inputs": {
         "nixpkgs": [
           "flaky",
@@ -190,16 +174,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1720535198,
-        "narHash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg=",
+        "lastModified": 1757893237,
+        "narHash": "sha256-WTqP4iH0sNfa+R+9+o1cgldFIQ21G2oMMYpaPeOcq70=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
+        "rev": "89dad8bf85ccf9b54af7e5ce3eed923066a9f99f",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "release-23.11",
+        "ref": "release-25.05",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -348,10 +332,20 @@
     },
     "root": {
       "inputs": {
-        "concat": "concat",
-        "flake-utils": "flake-utils",
+        "flake-utils": [
+          "flaky",
+          "flake-utils"
+        ],
         "flaky": "flaky",
-        "nixpkgs": "nixpkgs"
+        "flaky-haskell": "flaky-haskell",
+        "nixpkgs": [
+          "flaky",
+          "nixpkgs"
+        ],
+        "systems": [
+          "flaky",
+          "systems"
+        ]
       }
     },
     "shellcheck-nix-attributes": {
@@ -371,21 +365,6 @@
       }
     },
     "systems": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
-      }
-    },
-    "systems_2": {
       "locked": {
         "lastModified": 1726558681,
         "narHash": "sha256-vta8mxLa5XxpHfb9HCiavFqBrX2xJDvZiKHZOy4kvlA=",

@@ -1,4 +1,6 @@
 {-# LANGUAGE Unsafe #-}
+-- __TODO__: Some `Ord` instances need to be `INLINABLE`.
+{-# OPTIONS_GHC -Wwarn=missed-specialisations #-}
 
 module Main (main) where
 

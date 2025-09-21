@@ -1,4 +1,5 @@
 {-# LANGUAGE Safe #-}
+{-# OPTIONS_GHC -Wwarn=inferred-safe-imports #-}
 
 module Language.KellCalculus.AST
   ( Process (..),

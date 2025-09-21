@@ -41,7 +41,7 @@ import safe Data.Semigroup.Foldable (Foldable1 (fold1))
 import safe qualified Data.Set as Set
 import safe Data.String (String)
 import safe Data.Tuple (fst, snd, uncurry)
-import Language.Common.SetLike (SetLike ((∪)))
+import safe Language.Common.SetLike (SetLike ((∪)))
 import safe Language.KellCalculus.AST
   ( Name (Name),
     Pattern,
