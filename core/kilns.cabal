@@ -23,12 +23,6 @@ extra-doc-files:
   docs/*.md
 tested-with:
   GHC == {
-    8.6.1,
-    8.8.1,
-    8.10.1, 8.10.7,
-    9.0.1, 9.0.2,
-    9.2.1, 9.2.8,
-    9.4.1, 9.4.7,
     9.6.1, 9.6.3,
     9.8.1, 9.8.4,
     9.10.1,
@@ -117,7 +111,7 @@ common GHC2024
 common defaults
   import: GHC2024
   build-depends:
-    base,
+    base ^>= {4.18.0, 4.19.0, 4.20.0, 4.21.0},
   ghc-options:
     -Weverything
     -- This one just reports unfixable things, AFAICT.
@@ -175,11 +169,9 @@ library
   hs-source-dirs: src
   build-depends:
     base-unicode-symbols ^>= {0.2.2},
-    charset ^>= {0.3.7},
-    containers >= 0.6.0,
+    charset ^>= {0.3.9},
+    containers ^>= {0.6.7, 0.7},
     multiset ^>= {0.3.4},
-    -- We use `fold1`, which wasn’t added to base until 4.18 (GHC 9.6).
-    semigroupoids ^>= {5.3.1, 6.0.0},
   exposed-modules:
     Language.KellCalculus.Parser
     Language.KellCalculus.AST
@@ -213,7 +205,7 @@ test-suite doctests
   hs-source-dirs: tests
   main-is: doctests.hs
   build-depends:
-    doctest ^>= {0.16.0, 0.17.0, 0.18.0, 0.19.0, 0.20.0, 0.21.0, 0.22.0},
+    doctest ^>= {0.21.1, 0.22.2, 0.23.0, 0.24.2},
     kilns,
   if impl(ghc >= 8.10.1)
     ghc-options:

@@ -29,6 +29,7 @@ import safe qualified Data.CharSet as CharSet
 import safe qualified Data.CharSet.Unicode.Category as Unicode
 import safe Data.Eq (Eq ((==)))
 import safe Data.Foldable (Foldable (toList))
+import safe Data.Foldable1 (Foldable1 (fold1))
 import safe Data.Function (const, ($))
 import safe Data.Functor (Functor (fmap), (<$>))
 import safe qualified Data.List as List
@@ -37,7 +38,6 @@ import safe Data.Maybe (Maybe (Just, Nothing), catMaybes, fromMaybe, maybe)
 import safe Data.Monoid (Monoid (mconcat))
 import safe Data.Ord (Ord ((<=)))
 import safe Data.Semigroup (Semigroup ((<>)))
-import safe Data.Semigroup.Foldable (Foldable1 (fold1))
 import safe qualified Data.Set as Set
 import safe Data.String (String)
 import safe Data.Tuple (fst, snd, uncurry)
