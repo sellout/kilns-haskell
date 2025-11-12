@@ -115,7 +115,7 @@ common defaults
   ghc-options:
     -Weverything
     -- This one just reports unfixable things, AFAICT.
-    -Wno-all-missed-specialisations
+    -Wwarn=all-missed-specialisations
     -- Type inference good.
     -Wno-missing-local-signatures
     -- Warns even when `Unsafe` is explicit, not inferred. See
@@ -195,7 +195,7 @@ library
 executable kilns
   import: defaults
   build-depends:
-    containers ^>= {0.6.0},
+    containers ^>= {0.6.7, 0.7},
     kilns,
   main-is: src/Language/Kilns/Interpreter/Main.hs
 
@@ -205,7 +205,7 @@ test-suite doctests
   hs-source-dirs: tests
   main-is: doctests.hs
   build-depends:
-    doctest ^>= {0.21.1, 0.22.2, 0.23.0, 0.24.2},
+    doctest ^>= {0.21.1, 0.22.2, 0.23.0, 0.24.0},
     kilns,
   if impl(ghc >= 8.10.1)
     ghc-options:

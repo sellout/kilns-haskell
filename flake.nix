@@ -81,7 +81,8 @@
       # - https://discourse.nixos.org/t/nix-haskell-development-2020/6170
       overlays = {
         default = final: prev:
-          flaky-haskell.lib.overlayHaskellPackages
+          flaky.overlays.default final prev
+          // flaky-haskell.lib.overlayHaskellPackages
           (map self.lib.nixifyGhcVersion
             (self.lib.supportedGhcVersions final.system))
           (final: prev:
@@ -101,7 +102,12 @@
         ## NB: Dependencies that are overridden because they are broken in
         ##     Nixpkgs should be pushed upstream to Flaky. This is for
         ##     dependencies that we override for reasons local to the project.
-        haskellDependencies = final: prev: hfinal: hprev: {};
+        haskellDependencies = final: prev: hfinal: hprev: {
+          ## The tests fail on some GHC versions on aarch64-darwin.
+          binary-instances = final.haskell.lib.dontCheck hprev.binary-instances;
+          network = final.haskell.lib.dontCheck hprev.network;
+          warp = final.haskell.lib.dontCheck hprev.warp;
+        };
       };
 
       homeConfigurations =
@@ -164,7 +170,6 @@
     // flake-utils.lib.eachSystem supportedSystems
     (system: let
       pkgs = nixpkgs.legacyPackages.${system}.appendOverlays [
-        flaky.overlays.default
         ## NB: This uses `self.overlays.default` because packages need to be
         ##     able to find other packages in this flake as dependencies.
         self.overlays.default
@@ -214,15 +219,20 @@
 
   inputs = {
     ## Flaky should generally be the source of truth for its inputs.
-    flaky.url = "github:sellout/flaky";
+    flaky = {
+      inputs.systems.follows = "systems";
+      url = "github:sellout/flaky";
+    };
 
     flake-utils.follows = "flaky/flake-utils";
     nixpkgs.follows = "flaky/nixpkgs";
-    systems.follows = "flaky/systems";
 
     flaky-haskell = {
       inputs.flaky.follows = "flaky";
       url = "github:sellout/flaky-haskell";
     };
+
+    ## NB: Using this instead of `flaky/systems` to avoid i686.
+    systems.url = "github:nix-systems/default";
   };
 }

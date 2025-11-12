@@ -68,6 +68,10 @@
     ghcVersions = self.lib.nonNixTestedGhcVersions;
     cabalPackages = {"${config.project.name}" = "core";};
     latestGhcVersion = "9.10.1";
+    extraDependencyVersions = [
+      ## Used by GHC 9.12.1 in Nixpkgs 25.05, but missed by cabal-plan-bounds.
+      "doctest-0.24.0"
+    ];
   };
 
   ## publishing
