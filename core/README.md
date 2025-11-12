@@ -7,6 +7,10 @@ An experimental programming language based on the kell calculus
 
 This is a distributed-first programming language, built on a truly distributed process calculus.
 
+## support
+
+If there is some reason you can’t use this package (licensing, unsupported GHC version, unsupported platform, overly-tight dependency bounds, etc.), please [open an issue](https://github.com/sellout/kilns-haskell/issues). The default support is meant to strike a sweet spot between downstream consumers & maintenance cost. If there are consumers outside of the existing bounds, we can make that work, but only if we know you’re there.
+
 ## usage
 
 ## versioning
