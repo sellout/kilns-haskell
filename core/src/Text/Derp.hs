@@ -1,4 +1,7 @@
 {-# LANGUAGE Safe #-}
+-- __TODO__: Need to determine exactly where we need laziness annotations before
+--           enabling this.
+{-# LANGUAGE NoStrictData #-}
 
 module Text.Derp
   ( -- * Data Types

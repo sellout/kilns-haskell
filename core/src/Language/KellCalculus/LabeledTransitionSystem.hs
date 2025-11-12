@@ -1,9 +1,10 @@
 {-# LANGUAGE Safe #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 -- __FIXME__: All matches should be exhaustive. Probably need to extract some
 --            records from existing sum types.
-{-# OPTIONS_GHC -Wno-incomplete-patterns
-                -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wwarn=incomplete-patterns
+                -Wwarn=incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wwarn=inferred-safe-imports #-}
 
 module Language.KellCalculus.LabeledTransitionSystem
   ( Concretion (..),

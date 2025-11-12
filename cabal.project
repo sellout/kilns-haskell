@@ -1,5 +1,9 @@
-flags:
-  -noisy-deprecations
+-- Tune the solver to improve the odds of finding a solution. This is useful for
+-- initializing and updating dependency bounds, but shouldn’t have an impact on
+-- regular usage, because the explicit bounds reduce the search space.
+max-backjumps: -1
+minimize-conflict-set: true
+reorder-goals: true
 
 program-options
   ghc-options:
@@ -7,5 +11,19 @@ program-options
 
 tests: True
 
+constraints:
+  -- Versions before 5.0.6 don’t support any GHC we support, but are somehow being solved for anyway.
+  comonad >= 5.0.6,
+  -- Same as the comonad issue, but for this version.
+  base-unicode-symbols >= 0.2.2.4,
+  -- TODO: These constraints have been retroactively pulled from the kilns.cabal
+  --       file, so they might simply be a consequence of cabal-plan-bounds, but
+  --       using them as a starting point to avoid too much searching. Come back
+  --       to revisit them later.
+  charset >= 0.3.7,
+  containers >= 0.6.0,
+  doctest >= 0.16.0,
+  multiset >= 0.3.4,
+
 packages:
-  ./kilns/kilns.cabal
+  ./core/kilns.cabal

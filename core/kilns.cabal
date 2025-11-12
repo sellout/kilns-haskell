@@ -1,60 +1,91 @@
 cabal-version: 3.0
 
 name: kilns
-version: 0.1.0.0
+version: 0.0.1.0
 synopsis: An experimental programming language based on the kell calculus
-description:
-author: Greg Pfeil <greg@technomadic.org>
+description: This is a distributed-first programming language, built on a truly distributed process calculus.
 maintainer: Greg Pfeil <greg@technomadic.org>
-copyright: 2013–2024 Greg Pfeil
-homepage: https://github.com/sellout/kilns-haskell#readme
-bug-reports: https://github.com/sellout/kilns-haskell/issues
-category: Distributed Computing, Language
-build-type: Custom
-license: AGPL-3.0-or-later
+author: Greg Pfeil <greg@technomadic.org>
+copyright: 2013–2025 Greg Pfeil
+-- TODO: Remove the redundant `OR AGPL-3.0-only` once
+--       haskell/hackage-server#1440 is fixed.
+license: AGPL-3.0-only WITH Universal-FOSS-exception-1.0 OR AGPL-3.0-only OR LicenseRef-commercial
 license-files:
   LICENSE
+  LICENSE.AGPL-3.0-only
+  LICENSE.Universal-FOSS-exception-1.0
+  LICENSE.commercial
+category: Distributed Computing, Languages
+build-type: Custom
+extra-doc-files:
+  CHANGELOG.md
+  README.md
+  docs/*.md
 tested-with:
   GHC == {
---  GHCup   Nixpkgs
-    8.6.1,
-    8.8.1,  8.8.4,
-    8.10.1,
-    9.0.1,
-    9.2.1,
-    9.4.1,  9.4.8,
-    9.6.1,
-            9.8.1
+    9.6.1, 9.6.3,
+    9.8.1, 9.8.4,
+    9.10.1,
+    9.12.1
   }
 
+homepage: https://github.com/sellout/kilns-haskell#readme
+bug-reports: https://github.com/sellout/kilns-haskell/issues
 source-repository head
   type: git
-  location: https://github.com/sellout/kilns-haskell
+  location: https://github.com/sellout/kilns-haskell.git
+  subdir: core
 
--- This mimics the GHC2021 extension
--- (https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/control.html?highlight=doandifthenelse#extension-GHC2021),
+flag noisy-deprecations
+  description:
+    Prior to GHC 9.10, the @DEPRECATED@ pragma can’t distinguish between terms
+    and types. Consenquently, you can get spurious warnings when there’s a name
+    collision and the name in the other namespace is deprecated. Or you can
+    choose to not get those warnings, at the risk of not being warned when
+    there’s a name collision and the namespace you’re referencing is the one
+    that’s deprecated.
+  default: True
+  manual: False
+
+custom-setup
+  setup-depends:
+    -- TODO: Due to haskell/cabal#3751, `Cabal` has to be specified even though
+    --       there’s no direct dependency. Its lower bound needs to match
+    --      `cabal-version` at the top of this file, and Hackage requires it to
+    --       have _some_ upper bound. (Since there’s no direct dependency, it
+    --       doesn’t use PVP bounds.)
+    Cabal >= 3.0 && < 99,
+    base,
+    cabal-doctest ^>= {1.0.0},
+
+-- This mimics the GHC2024 extension
+-- (https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/control.html?highlight=doandifthenelse#extension-GHC2024),
 -- but supporting compilers back to GHC 7.10. If the oldest supported compiler
--- is GHC 9.2, then this stanza can be removed and `import: GHC2021` can be
--- replaced by `default-language: GHC2021`.
-common GHC2021
+-- is GHC 9.10, then this stanza can be removed and `import: GHC2024` can be
+-- replaced by `default-language: GHC2024`. If the oldest supported compiler is
+-- GHC 9.2, then this can be simplified by setting `default-language: GHC2021`
+-- and only including the extensions added by GHC2024.
+common GHC2024
   default-language: Haskell2010
   default-extensions:
     BangPatterns
     BinaryLiterals
     ConstraintKinds
+    DataKinds
     DeriveDataTypeable
     DeriveGeneric
     -- DeriveLift -- uncomment if the oldest supported version is GHC 8.10.1+
     DeriveTraversable
     DerivingStrategies
+    DisambiguateRecordFields
     DoAndIfThenElse
     EmptyCase
     ExistentialQuantification
     FlexibleContexts
     FlexibleInstances
-    GADTSyntax
+    GADTs
     GeneralizedNewtypeDeriving
-    -- HexFloatLiterals -- uncomment if the oldest supported version is GHC 8.4.1+
+    HexFloatLiterals
     -- ImportQualifiedPost -- uncomment if the oldest supported version is GHC 8.10.1+
     InstanceSigs
     LambdaCase
@@ -64,66 +95,52 @@ common GHC2021
     MultiParamTypeClasses
     NamedFieldPuns
     NamedWildCards
-    -- NumericUnderscores -- uncomment if the oldest supported version is GHC 8.6.1+
+    NumericUnderscores
     PolyKinds
     PostfixOperators
     RankNTypes
+    RoleAnnotations
     ScopedTypeVariables
     StandaloneDeriving
     -- StandaloneKindSignatures -- uncomment if the oldest supported version is GHC 8.10.1+
     TupleSections
-    -- TypeApplications -- uncomment if the oldest supported version is GHC 8.0.1+
+    TypeApplications
     TypeOperators
     UnicodeSyntax
-    NoExplicitNamespaces
-
-flag noisy-deprecations
-  description:
-    Prior to GHC 9.10, the `DEPRECATED` pragma can’t distinguish between terms
-    and types. Consenquently, you can get spurious warnings when there’s a name
-    collision and the name in the other namespace is deprecated. Or you can
-    choose to not get those warnings, at the risk of not being warned when
-    there’s a name collision and the namespace you’re referencing is the one
-    that’s deprecated.
 
 common defaults
-  import: GHC2021
+  import: GHC2024
   build-depends:
-    base ^>= {4.12.0, 4.13.0, 4.14.0, 4.15.0, 4.16.0, 4.17.0, 4.18.0, 4.19.0},
+    base ^>= {4.18.0, 4.19.0, 4.20.0, 4.21.0},
   ghc-options:
     -Weverything
     -- This one just reports unfixable things, AFAICT.
-    -Wno-all-missed-specialisations
+    -Wwarn=all-missed-specialisations
     -- Type inference good.
     -Wno-missing-local-signatures
     -- Warns even when `Unsafe` is explicit, not inferred. See
     -- https://gitlab.haskell.org/ghc/ghc/-/issues/16689
     -Wno-unsafe
-    -fpackage-trust
-    -trust base
   if impl(ghc < 8.8.1)
     ghc-options:
       -- This used to warn even when `Safe` was explicit.
       -Wno-safe
+  -- remove if the oldest supported version is GHC 8.10.1+
   if impl(ghc >= 8.10.1)
     ghc-options:
-      -- If we didn’t allow inferred-safe imports, nothing would be `Safe`.
-      -Wno-inferred-safe-imports
-      -- We support GHC versions without qualified-post.
       -Wno-prepositive-qualified-module
-      -- `-trust` triggers this warning when applied to transitive dependencies.
-      -Wno-unused-packages
+  -- remove if the oldest supported version is GHC 9.2.1+
   if impl(ghc >= 9.2.1)
     ghc-options:
-      -- We support GHC versions without kind signatures.
       -Wno-missing-kind-signatures
   if impl(ghc >= 9.8.1)
     ghc-options:
-      -- We support GHC versions without kind signatures.
+      -- remove if the oldest supported version is GHC 9.2.1+
       -Wno-missing-poly-kind-signatures
       -- Inference good.
       -Wno-missing-role-annotations
   default-extensions:
+    BlockArguments
     DefaultSignatures
     ExplicitNamespaces
     FunctionalDependencies
@@ -135,48 +152,26 @@ common defaults
     -- QualifiedDo - uncomment if the oldest supported version is GHC 9.0.1+
     RecursiveDo
     -- RequiredTypeArguments - uncomment if the oldest supported version is GHC 9.10.1+
-    -- StrictData - uncomment if the oldest supported version is GHC 8.0.1+
-    -- TemplateHaskellQuotes - uncomment if the oldest supported version is GHC 8.0.1+
+    StrictData
+    TemplateHaskellQuotes
     TransformListComp
     NoGeneralizedNewtypeDeriving
     NoImplicitPrelude
     NoMonomorphismRestriction
     NoPatternGuards
-    -- NoTypeApplications - uncomment if the oldest supported version is GHC 8.0.1+
+    NoStarIsType
+    NoTypeApplications
   if flag(noisy-deprecations)
     cpp-options: -DSELLOUT_NOISY_DEPRECATIONS
 
-custom-setup
-  setup-depends:
-    -- TODO: Remove `Cabal` dep once haskell/cabal#3751 is fixed.
-    Cabal ^>= {3.0.0, 3.2.0, 3.4.0, 3.6.0, 3.8.0, 3.10.0},
-    base ^>= {4.12.0, 4.13.0, 4.14.0, 4.15.0, 4.16.0, 4.17.0, 4.18.0, 4.19.0},
-    cabal-doctest ^>= {1.0.0},
-
 library
   import: defaults
+  hs-source-dirs: src
   build-depends:
     base-unicode-symbols ^>= {0.2.2},
-    charset ^>= {0.3.7},
-    containers ^>= {0.6.0},
+    charset ^>= {0.3.9},
+    containers ^>= {0.6.7, 0.7},
     multiset ^>= {0.3.4},
-    -- We use `fold1`, which wasn’t added to base until 4.18 (GHC 9.6).
-    semigroupoids ^>= {5.3.1, 6.0.0},
-    -- NB: foldable-classes-compat is a transitive dependency … depending on
-    --     which version of other dependencies (specifically,
-    --     indexed-traversable) we select. However, `-trust` only works for
-    --     packages in the dependency graph, so we make it explicit here for the
-    --     times that it doesn’t get included transitively.
-    foldable1-classes-compat ^>= 0.1,
-  hs-source-dirs: src
-  ghc-options:
-    -trust base-orphans
-    -trust charset
-    -trust containers
-    -trust foldable1-classes-compat
-    -trust semigroupoids
-    -trust transformers-compat
-    -trust unordered-containers
   exposed-modules:
     Language.KellCalculus.Parser
     Language.KellCalculus.AST
@@ -197,14 +192,27 @@ library
   other-modules:
     Language.Common.SetLike
 
+executable kilns
+  import: defaults
+  build-depends:
+    containers ^>= {0.6.7, 0.7},
+    kilns,
+  main-is: src/Language/Kilns/Interpreter/Main.hs
+
 test-suite doctests
   import: defaults
   type: exitcode-stdio-1.0
   hs-source-dirs: tests
   main-is: doctests.hs
   build-depends:
-    doctest ^>= {0.16.0, 0.18.1, 0.20.1, 0.21.1, 0.22.2},
+    doctest ^>= {0.21.1, 0.22.2, 0.23.0, 0.24.0},
     kilns,
+  if impl(ghc >= 8.10.1)
+    ghc-options:
+      -- `doctest` requires the package containing the doctests as a dependency
+      -- to ensure it gets built before this test-suite, even though the package
+      -- appears to be unused.
+      -Wno-unused-packages
   -- TODO: The sections below here are necessary because we don’t have control
   --       over the generated `Build_doctests.hs` file. So we have to silence
   --       all of its warnings one way or another.
@@ -214,19 +222,9 @@ test-suite doctests
     -Wno-safe
   if impl(ghc >= 8.8.1)
     ghc-options:
-      -- This used to warn even when `Safe` was explicit.
       -Wno-missing-deriving-strategies
   default-extensions:
     -- Since we can’t add `{-# LANGUAGE Safe -#}` to the generated
     -- “Build_doctests.hs”, we set it here, and that means it has to match
     -- doctests.hs, which is `Unsafe`.
     Unsafe
-
-executable kilns
-  import: defaults
-  build-depends:
-    containers ^>= {0.6.0},
-    kilns,
-  ghc-options:
-    -trust containers
-  main-is: src/Language/Kilns/Interpreter/Main.hs

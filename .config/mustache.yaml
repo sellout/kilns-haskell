@@ -1,11 +1,10 @@
 {
   "project":
     {
-      "description": "",
-      "name": "kilns",
+      "description": "This is a distributed-first programming language, built on a truly distributed process calculus.",
+      "name": "kilns-haskell",
       "repo": "sellout/kilns-haskell",
       "summary": "An experimental programming language based on the kell calculus",
-      "version": "0.1.0.0",
     },
   "type": { "name": "haskell" },
 }

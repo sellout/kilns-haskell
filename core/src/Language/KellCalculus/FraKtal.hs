@@ -15,6 +15,7 @@ import safe Control.Category (Category ((.)))
 import safe Data.Bool (Bool (False, True))
 import safe Data.Char (Char)
 import safe Data.Eq (Eq ((/=), (==)))
+import safe Data.Foldable1 (Foldable1 (fold1))
 import safe Data.Function (const, ($))
 import safe Data.Functor ((<$>))
 import safe qualified Data.Map as Map
@@ -22,7 +23,6 @@ import safe Data.Maybe (Maybe (Just, Nothing))
 import safe qualified Data.MultiSet as MultiSet
 import safe Data.Ord (Ord)
 import safe Data.Semigroup (Semigroup ((<>)))
-import safe Data.Semigroup.Foldable (Foldable1 (fold1))
 import safe qualified Data.Set as Set
 import safe Data.Tuple (snd)
 import safe Language.Common.SetLike (MultiSettable (toMultiSet), SetLike ((∅), (∪)), (∧))

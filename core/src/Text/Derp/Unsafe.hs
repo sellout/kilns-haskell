@@ -3,6 +3,8 @@
 -- __TODO__: @`Show` (`Parser` t a)@ is an orphan because it requires unsafe
 --           operations that can’t be included in "Text.Derp".
 {-# OPTIONS_GHC -Wno-orphans #-}
+-- __TODO__: `compare` in `Ord (Token t)` needs to be `INLINABLE`.
+{-# OPTIONS_GHC -Wwarn=missed-specialisations #-}
 
 module Text.Derp.Unsafe
   ( -- * Data Types
@@ -59,7 +61,7 @@ where
 
 import safe Control.Applicative (Applicative (pure, (<*>)))
 import safe Control.Category (Category ((.)))
-import safe Control.Monad (foldM, liftM, (<=<))
+import safe Control.Monad (foldM, (<=<))
 import safe Data.Bool (Bool (False, True), otherwise, (&&))
 import safe Data.Eq (Eq ((/=), (==)))
 import safe Data.Function (fix, ($))
@@ -82,7 +84,7 @@ import safe Data.Tuple (uncurry)
 import safe System.IO (IO)
 import System.IO.Unsafe (unsafePerformIO)
 import safe System.Mem.StableName (StableName, hashStableName, makeStableName)
-import Text.Derp
+import safe Text.Derp
   ( ContextR (ConContext, RedContext, TopContext),
     FPValue (FPDecided, FPUndecided),
     Parser (Parser, parserEmpty, parserNullable, parserRec),
@@ -465,7 +467,7 @@ lookupId reifiedPt uidPt p
             pure thisId
         )
         pure
-        <=< liftM (extraLookup stblNameHashed stblName)
+        <=< fmap (extraLookup stblNameHashed stblName)
         $ readIORef reifiedPt
   | otherwise = error "seq failed"
 
@@ -481,12 +483,12 @@ seenId seenPt p
               (Map.insertWith (<>) stblNameHashed [(stblName, ())])
         )
         (\() -> pure True)
-        <=< liftM (extraLookup stblNameHashed stblName)
+        <=< fmap (extraLookup stblNameHashed stblName)
         $ readIORef seenPt
   | otherwise = error "seq failed"
 
 genericStableName :: a -> IO (StableName ())
-genericStableName = liftM unsafeCoerce . makeStableName
+genericStableName = fmap unsafeCoerce . makeStableName
 
 extraLookup :: Int -> StableName () -> Map Int [(StableName (), a)] -> Maybe a
 extraLookup hashed key = process . Map.lookup hashed
